@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Transform face-to-face consultation notes into structured community consultation reports.">
+  <title>Consultation Report Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="#" aria-label="Consultation Report Assistant home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="img"><path d="M8 7.5h16v13H13l-5 4v-17Z"/><path d="M12 12h8M12 16h6"/></svg>
+        </span>
+        <span>
+          <strong>Consultation</strong>
+          <small>Report Assistant</small>
+        </span>
+      </a>
+      <div class="header-actions">
+        <span class="local-badge"><span></span> Local workspace</span>
+        <a class="text-link" href="#roadmap">Platform roadmap</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="shell hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">Consultation reporting, structured</span>
+          <h1>Turn consultation notes into reports people can act on.</h1>
+          <p>Transform face-to-face consultation notes into clear, structured community consultation reports—while keeping professional judgement and final decisions in your hands.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#workspace">Create a report <span aria-hidden="true">→</span></a>
+            <span class="privacy-note">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.8 2.8 8.1 7 10 4.2-1.9 7-5.2 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              Your notes stay in this browser
+            </span>
+          </div>
+        </div>
+        <aside class="hero-proof" aria-label="Product principles">
+          <div class="proof-top">
+            <span class="proof-icon" aria-hidden="true">✓</span>
+            <div><strong>Human-led by design</strong><p>A structured drafting tool, with every section open for your review.</p></div>
+          </div>
+          <div class="proof-stats">
+            <div><strong>8</strong><span>report sections</span></div>
+            <div><strong>100%</strong><span>editable</span></div>
+            <div><strong>Local</strong><span>processing</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="shell progress-wrap" aria-label="Report creation progress">
+      <ol class="progress" id="progressIndicator">
+        <li class="active" data-progress="input"><span>1</span><div><strong>Input</strong><small>Add consultation details</small></div></li>
+        <li data-progress="review"><span>2</span><div><strong>Review</strong><small>Check source notes</small></div></li>
+        <li data-progress="report"><span>3</span><div><strong>Report</strong><small>Refine the draft</small></div></li>
+        <li data-progress="export"><span>4</span><div><strong>Export</strong><small>Share your work</small></div></li>
+      </ol>
+    </section>
+
+    <section class="workspace-section" id="workspace">
+      <div class="shell">
+        <div class="section-heading">
+          <div><span class="eyebrow">Report workspace</span><h2>Build your consultation report</h2></div>
+          <p>Complete the details below, add your notes, then create a structured first draft for professional review.</p>
+        </div>
+
+        <div class="workspace-grid">
+          <section class="panel input-panel" aria-labelledby="input-heading">
+            <div class="panel-header">
+              <div><span class="step-kicker">Step 1 of 4</span><h3 id="input-heading">Consultation input</h3></div>
+              <button class="button button-quiet button-small" id="clearButton" type="button">Clear form</button>
+            </div>
+
+            <form id="consultationForm">
+              <fieldset>
+                <legend>Consultation details</legend>
+                <div class="form-grid">
+                  <label class="field full"><span>Consultation title <b aria-hidden="true">*</b></span><input id="title" name="title" type="text" value="Neighbourhood Wellbeing Consultation" required></label>
+                  <label class="field"><span>Organization / Community name <b aria-hidden="true">*</b></span><input id="organization" name="organization" type="text" value="Northside Community Partnership" required></label>
+                  <label class="field"><span>Prepared for</span><input id="preparedFor" name="preparedFor" type="text" value="Community Development Committee"></label>
+                  <label class="field"><span>Prepared by</span><input id="preparedBy" name="preparedBy" type="text" value="Engagement and Insights Team"></label>
+                  <label class="field"><span>Consultation date</span><input id="consultationDate" name="consultationDate" type="date" value="2026-06-18"></label>
+                  <label class="field"><span>Consultation type</span><select id="consultationType" name="consultationType"><option>Workshop</option><option>Focus Group</option><option>Interview</option><option>Community Forum</option><option>Survey Notes</option><option>Other</option></select></label>
+                  <label class="field"><span>Participants / Group</span><input id="participants" name="participants" type="text" value="28 residents, service providers and local traders"></label>
+                  <label class="field"><span>Location / Region</span><input id="location" name="location" type="text" value="Northside Community Hub, Melbourne"></label>
+                </div>
+              </fieldset>
+
+              <div class="tabs" role="tablist" aria-label="Source format">
+                <button id="notesTab" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="notesPanel">Notes</button>
+                <button id="audioTab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="audioPanel">Audio <span>Coming soon</span></button>
+              </div>
+
+              <div id="notesPanel" class="tab-panel" role="tabpanel" aria-labelledby="notesTab">
+                <label class="field notes-field" for="notes">
+                  <span class="label-row"><span>Consultation notes <b aria-hidden="true">*</b></span><small id="wordCount">0 words</small></span>
+                  <textarea id="notes" name="notes" rows="14" required>Participants consistently described the community hub as welcoming, but said its limited opening hours make it difficult for working families to access services. Several residents asked for one late evening each week and more weekend activities.
+
+Transport was a recurring concern. Older residents and parents noted that the nearest bus stop has limited shelter and the pedestrian crossing feels unsafe at busy times. One participant said, “A safe crossing would make the hub feel genuinely accessible.”
+
+There was strong support for multilingual information. Community leaders suggested translated event notices, plain-language service guides and a roster of bilingual volunteers. Participants stressed that translated materials should be checked by community members before publication.
+
+Young people wanted a regular, low-cost program they could help design. Suggested activities included homework support, creative workshops and a monthly youth advisory session. Service providers recommended beginning with a three-month pilot and reviewing attendance and participant feedback.
+
+Priority actions identified by the group were: extend opening hours on a trial basis; raise pedestrian safety with council; co-design multilingual materials; and establish a youth program working group. Participants asked for a written update within six weeks.</textarea>
+                </label>
+                <div class="input-guidance">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+                  <p><strong>For a stronger draft:</strong> include recurring themes, different perspectives, priorities, direct quotes and any agreed follow-up actions.</p>
+                </div>
+              </div>
+
+              <div id="audioPanel" class="tab-panel" role="tabpanel" aria-labelledby="audioTab" hidden>
+                <div class="audio-placeholder">
+                  <span class="coming-badge">Coming soon</span>
+                  <div class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 15v4h14v-4"/></svg></div>
+                  <h4>Audio consultation workflow</h4>
+                  <p>Audio transcription and AI-powered report generation will be available in a future release.</p>
+                  <button type="button" class="button button-disabled" disabled>Upload audio</button>
+                </div>
+                <div class="future-flow" aria-label="Planned audio workflow">
+                  <span>Audio Upload</span><i>→</i><span>Transcription</span><i>→</i><span>Transcript Review</span><i>→</i><span>Structured Report</span>
+                </div>
+              </div>
+
+              <div class="form-action">
+                <div><strong>Ready to create your draft?</strong><span>Review and edit every section before sharing.</span></div>
+                <button class="button button-primary button-large" type="submit">Generate structured draft <span aria-hidden="true">→</span></button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="side-column">
+            <section class="panel compact-panel" aria-labelledby="quality-heading">
+              <div class="panel-header compact"><div><span class="step-kicker">Draft standard</span><h3 id="quality-heading">Report quality</h3></div><span class="score" id="qualityScore">0/4</span></div>
+              <ul class="quality-list">
+                <li data-check="clarity"><span>✓</span><div><strong>Clarity</strong><small>Purpose and context are clear</small></div></li>
+                <li data-check="evidence"><span>✓</span><div><strong>Evidence</strong><small>Findings reflect source notes</small></div></li>
+                <li data-check="recommendations"><span>✓</span><div><strong>Recommendations</strong><small>Priorities are actionable</small></div></li>
+                <li data-check="nextSteps"><span>✓</span><div><strong>Next steps</strong><small>Follow-up is defined</small></div></li>
+              </ul>
+              <p class="quality-help">The checklist activates when a report draft is created.</p>
+            </section>
+
+            <section class="panel compact-panel export-panel" aria-labelledby="export-heading">
+              <div class="panel-header compact"><div><span class="step-kicker">Step 4 of 4</span><h3 id="export-heading">Export report</h3></div></div>
+              <button id="copyButton" class="export-option available" type="button" disabled><span class="export-file">CP</span><span><strong>Copy full report</strong><small>Copy formatted text</small></span><b>Available</b></button>
+              <button id="downloadButton" class="export-option available" type="button" disabled><span class="export-file">TXT</span><span><strong>Download text file</strong><small>Universal plain text</small></span><b>Available</b></button>
+              <div class="export-option"><span class="export-file">DOCX</span><span><strong>Editable Word report</strong><small>Professional template</small></span><b>Coming soon</b></div>
+              <div class="export-option"><span class="export-file">PDF</span><span><strong>Publication-ready PDF</strong><small>Final sharing format</small></span><b>Coming soon</b></div>
+            </section>
+          </aside>
+        </div>
+
+        <section class="report-area" id="reportArea" aria-labelledby="report-heading">
+          <div class="report-toolbar">
+            <div><span class="eyebrow">Structured draft</span><h2 id="report-heading">Report preview</h2></div>
+            <span class="draft-status" id="draftStatus"><i></i> Waiting for consultation input</span>
+          </div>
+
+          <div class="empty-report" id="emptyReport">
+            <div class="empty-illustration" aria-hidden="true"><span></span><i></i><i></i><i></i></div>
+            <h3>Your structured report will appear here</h3>
+            <p>Add the consultation details and notes above, then generate a draft. Every section will remain fully editable.</p>
+            <a class="button button-secondary" href="#consultationForm">Go to consultation input</a>
+          </div>
+
+          <article class="report-document" id="reportDocument" hidden>
+            <header class="report-cover">
+              <div class="report-brandline"><span></span> Consultation Report</div>
+              <h2 id="reportTitle">Consultation Report</h2>
+              <p id="reportSubtitle"></p>
+              <dl class="report-meta" id="reportMeta"></dl>
+            </header>
+            <div id="reportSections"></div>
+            <p class="edit-note"><span aria-hidden="true">✎</span> All report sections are editable. Review the draft against your original notes before sharing.</p>
+          </article>
+        </section>
+      </div>
+    </section>
+
+    <section class="roadmap-section" id="roadmap">
+      <div class="shell">
+        <div class="roadmap-intro"><div><span class="eyebrow">Future platform roadmap</span><h2>A clear path from drafting tool to consultation intelligence platform.</h2></div><p>Planned capabilities are shown for product direction only and are not included in this local prototype.</p></div>
+        <div class="roadmap-grid">
+          <article class="roadmap-card featured"><span class="phase">Phase 2</span><h3>Professional publishing</h3><ul><li>AI-powered report generation with Gemini/OpenAI</li><li>DOCX export for editable Word reports</li><li>PDF export for final sharing</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 3</span><h3>Report templates</h3><ul><li>Consultation Report</li><li>Submission</li><li>Policy Brief</li><li>Internal Summary</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 4</span><h3>Consultation analysis</h3><ul><li>Multiple consultation analysis</li><li>Recurring theme detection</li><li>Cross-consultation insights</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 5</span><h3>Insight dashboards</h3><ul><li>Dashboard and visualizations</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 6</span><h3>Secure workspace</h3><ul><li>Login</li><li>Report history</li><li>Database</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 7</span><h3>Inclusive access</h3><ul><li>Multilingual support</li></ul></article>
+          <article class="roadmap-card wide"><span class="phase">Phase 8</span><h3>Connected consultation operations</h3><ul><li>Audio transcription</li><li>Transcript review</li><li>Collaboration features</li><li>Institutional knowledge base</li></ul></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-inner"><div class="brand footer-brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M8 7.5h16v13H13l-5 4v-17Z"/><path d="M12 12h8M12 16h6"/></svg></span><span><strong>Consultation</strong><small>Report Assistant</small></span></div><p>Built for community consultations, workshops and engagement activities.</p><span>Local prototype · No data uploaded</span></div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="script.js"></script>
+</body>
+</html>
