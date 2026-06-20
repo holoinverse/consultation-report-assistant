@@ -20,15 +20,16 @@ const savedTemplates = $("#savedTemplates");
 const toast = $("#toast");
 
 const presets = {
-  "Consultation Report": ["Executive Summary", "Key Findings", "Main Themes", "Community Feedback", "Recommendations", "Action Items", "Key Quotes", "Next Steps"],
+  "Consultation Report": ["Executive Summary", "Consultation Context", "Key Findings", "Main Themes", "Community Feedback", "Recommendations", "Action Items", "Key Quotes", "Next Steps"],
   "Community Consultation Report": ["Executive Summary", "Consultation Context", "Who We Heard From", "Community Priorities", "Stakeholder Feedback", "Recommendations", "Action Items", "Next Steps"],
-  "Policy Brief": ["Executive Summary", "Policy Context", "Evidence and Findings", "Policy Options", "Recommendations", "Implementation Considerations", "Next Steps"],
+  "Policy Brief": ["Executive Summary", "Policy Issue", "Background", "Evidence from Consultation", "Key Insights", "Policy Options", "Recommendations", "Implementation Considerations", "Next Steps"],
+  "Committee Minutes": ["Meeting Details", "Attendance", "Apologies", "Agenda Items", "Key Discussion Points", "Decisions Made", "Action Items", "Next Meeting"],
   "Executive Brief": ["Purpose", "Executive Summary", "Critical Findings", "Decisions Required", "Risks", "Recommended Actions", "Next Steps"],
   "Meeting Report": ["Meeting Overview", "Attendees", "Discussion Summary", "Decisions", "Action Items", "Open Issues", "Next Meeting"],
   "Submission Draft": ["Executive Summary", "About the Organization", "Submission Context", "Key Issues", "Evidence", "Recommendations", "Conclusion"],
   "Submission": ["Executive Summary", "About the Organization", "Consultation Context", "Key Issues", "Evidence", "Recommendations", "Conclusion"],
   "Internal Summary": ["Purpose", "Consultation Overview", "Key Findings", "Risks", "Decisions Required", "Action Items", "Next Steps"],
-  "Workshop Summary": ["Workshop Overview", "Participants", "Discussion Themes", "Community Priorities", "Key Quotes", "Agreed Actions", "Next Steps"],
+  "Workshop Summary": ["Workshop Overview", "Participants", "Discussion Topics", "Key Insights", "Activities and Feedback", "Actions Agreed", "Responsibilities", "Follow Up", "Next Steps"],
   "Community Engagement Report": ["Executive Summary", "Engagement Approach", "Who We Heard From", "Main Themes", "Stakeholder Feedback", "Community Priorities", "Recommendations", "Next Steps"],
   "Custom": ["Executive Summary", "New Section"]
 };
@@ -1491,9 +1492,18 @@ $("#renameTemplate").addEventListener("click", renameTemplate);
 $("#duplicateTemplate").addEventListener("click", duplicateTemplate);
 $("#deleteTemplate").addEventListener("click", removeTemplate);
 $("#applyBuiltinTemplate").addEventListener("click", () => {
-  reportType.value = $("#builtinTemplates").value;
-  reportType.dispatchEvent(new Event("change", { bubbles: true }));
-  showToast(`${reportType.value} structure selected. Everything remains editable.`);
+  const selectedTemplate = $("#builtinTemplates").value;
+  reportType.value = selectedTemplate;
+  state.reportType = selectedTemplate;
+  state.loadedTemplate = null;
+  if (state.generated) {
+    const existingContent = Object.fromEntries(state.sections.map(section => [section.title, section.content]));
+    const baseContent = createBaseContent(getData());
+    state.sections = presets[selectedTemplate].map((title, index) => newSection(title, existingContent[title] || baseContent[title] || "<p>Add evidence, analysis or professional commentary for this section.</p>", String(index + 1).padStart(2, "0")));
+    renderHeader();
+    renderSections();
+  }
+  showToast(`${selectedTemplate} applied. Every section remains editable.`);
 });
 
 updateWordCount();

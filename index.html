@@ -95,7 +95,7 @@
                 <legend>Consultation details</legend>
                 <div class="form-grid">
                   <label class="field full"><span>Consultation title <b aria-hidden="true">*</b></span><input id="title" name="title" type="text" value="Neighbourhood Wellbeing Consultation" required></label>
-                  <label class="field full"><span>Report type</span><select id="reportType" name="reportType"><option>Consultation Report</option><option>Community Consultation Report</option><option>Workshop Summary</option><option>Submission Draft</option><option>Policy Brief</option><option>Executive Brief</option><option>Meeting Report</option><option>Community Engagement Report</option><option>Submission</option><option>Internal Summary</option><option>Custom</option></select><small class="field-help">Select a starting structure. Every section remains editable.</small></label>
+                  <label class="field full"><span>Report type</span><select id="reportType" name="reportType"><option>Consultation Report</option><option>Community Consultation Report</option><option>Workshop Summary</option><option>Policy Brief</option><option>Committee Minutes</option><option>Submission Draft</option><option>Executive Brief</option><option>Meeting Report</option><option>Community Engagement Report</option><option>Submission</option><option>Internal Summary</option><option>Custom</option></select><small class="field-help">Select a starting structure. Every section remains editable.</small></label>
                   <label class="field"><span>Organization / Community name <b aria-hidden="true">*</b></span><input id="organization" name="organization" type="text" value="Northside Community Partnership" required></label>
                   <label class="field"><span>Prepared for</span><input id="preparedFor" name="preparedFor" type="text" value="Community Development Committee"></label>
                   <label class="field"><span>Prepared by</span><input id="preparedBy" name="preparedBy" type="text" value="Engagement and Insights Team"></label>
@@ -226,12 +226,12 @@ Priority actions identified by the group were: extend opening hours on a trial b
             </section>
 
             <section class="panel compact-panel template-panel" aria-labelledby="template-heading">
-              <div class="panel-header compact"><div><span class="step-kicker">Local library</span><h3 id="template-heading">Custom templates</h3></div></div>
+              <div class="panel-header compact"><div><span class="step-kicker">Local library</span><h3 id="template-heading">Report Templates</h3></div></div>
               <div class="template-body">
                 <p>Start from a built-in structure or save the current report configuration in this browser.</p>
                 <div class="built-in-library">
-                  <label class="field" for="builtinTemplates"><span>Built-in report templates</span><select id="builtinTemplates"><option>Consultation Report</option><option>Community Consultation Report</option><option>Workshop Summary</option><option>Submission Draft</option><option>Policy Brief</option><option>Executive Brief</option><option>Meeting Report</option><option>Community Engagement Report</option></select></label>
-                  <button id="applyBuiltinTemplate" class="button button-secondary button-small" type="button">Apply structure</button>
+                  <label class="field" for="builtinTemplates"><span>Built-in Report Templates</span><select id="builtinTemplates"><option>Consultation Report</option><option>Workshop Summary</option><option>Policy Brief</option><option>Committee Minutes</option></select></label>
+                  <button id="applyBuiltinTemplate" class="button button-secondary button-small" type="button">Apply Template</button>
                 </div>
                 <div class="template-save-fields">
                   <label class="field"><span>Template category</span><select id="templateCategory"><option>Consultation</option><option>Community Engagement</option><option>Policy</option><option>Workshop</option><option>Internal</option><option>Custom</option></select></label>
@@ -239,7 +239,7 @@ Priority actions identified by the group were: extend opening hours on a trial b
                 </div>
                 <div class="inline-control"><label class="sr-only" for="templateName">Template name or new name</label><input id="templateName" type="text" placeholder="Template name or new name" maxlength="60"><button id="saveTemplate" type="button" disabled>Save</button></div>
                 <div class="template-library">
-                  <label class="field" for="savedTemplates"><span>Saved templates</span><select id="savedTemplates"><option value="">No saved templates</option></select></label>
+                  <label class="field" for="savedTemplates"><span>My Templates</span><select id="savedTemplates"><option value="">No saved templates</option></select></label>
                   <div class="template-actions"><button id="loadTemplate" class="button button-secondary button-small" type="button" disabled>Load</button><button id="previewTemplate" class="button button-secondary button-small" type="button" disabled>Preview</button><button id="renameTemplate" class="button button-secondary button-small" type="button" disabled>Rename</button><button id="duplicateTemplate" class="button button-secondary button-small" type="button" disabled>Duplicate</button><button id="deleteTemplate" class="button button-quiet button-small" type="button" disabled>Delete</button></div>
                 </div>
                 <div class="template-preview" id="templatePreview" hidden></div>
