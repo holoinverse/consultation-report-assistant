@@ -11,9 +11,13 @@ Open `index.html` directly in a modern browser. No installation, server, account
 ## Features
 
 - Consultation metadata and detailed notes input
+- Seven editable report-type presets
 - Notes and future Audio workflow tabs
 - Local structured-draft generation
-- Eight editable professional report sections
+- Fully editable, removable and reorderable report sections
+- Custom sections with automatic, manual or hidden numbering
+- Local custom template saving and loading through browser storage
+- Live report branding, colours, typography, logo, image and watermark controls
 - Report metadata and quality checklist
 - Copy full report and download TXT
 - Clear form, status messages and professional empty states
@@ -30,7 +34,7 @@ All asset paths are relative, so no changes are required for GitHub Pages.
 
 ## Privacy and scope
 
-All report generation happens in the browser. Notes are not uploaded or stored by this prototype. Users should review every generated section against the original consultation evidence before publication.
+All report generation happens in the browser. Notes and uploaded images are not transmitted. Custom templates are stored only in the current browser and contain section structure—not consultation content. Users should review every generated section against the original consultation evidence before publication.
 
 The roadmap describes planned product directions only. AI integration, DOCX/PDF export, authentication, persistence, transcription and collaboration are not implemented in this release.
 

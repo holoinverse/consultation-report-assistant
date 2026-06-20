@@ -50,7 +50,7 @@
             <div><strong>Human-led by design</strong><p>A structured drafting tool, with every section open for your review.</p></div>
           </div>
           <div class="proof-stats">
-            <div><strong>8</strong><span>report sections</span></div>
+            <div><strong>Flexible</strong><span>report sections</span></div>
             <div><strong>100%</strong><span>editable</span></div>
             <div><strong>Local</strong><span>processing</span></div>
           </div>
@@ -86,6 +86,7 @@
                 <legend>Consultation details</legend>
                 <div class="form-grid">
                   <label class="field full"><span>Consultation title <b aria-hidden="true">*</b></span><input id="title" name="title" type="text" value="Neighbourhood Wellbeing Consultation" required></label>
+                  <label class="field full"><span>Report type</span><select id="reportType" name="reportType"><option>Consultation Report</option><option>Policy Brief</option><option>Submission</option><option>Internal Summary</option><option>Workshop Summary</option><option>Community Engagement Report</option><option>Custom</option></select><small class="field-help">Select a starting structure. Every section remains editable.</small></label>
                   <label class="field"><span>Organization / Community name <b aria-hidden="true">*</b></span><input id="organization" name="organization" type="text" value="Northside Community Partnership" required></label>
                   <label class="field"><span>Prepared for</span><input id="preparedFor" name="preparedFor" type="text" value="Community Development Committee"></label>
                   <label class="field"><span>Prepared by</span><input id="preparedBy" name="preparedBy" type="text" value="Engagement and Insights Team"></label>
@@ -152,12 +153,44 @@ Priority actions identified by the group were: extend opening hours on a trial b
               <p class="quality-help">The checklist activates when a report draft is created.</p>
             </section>
 
+            <section class="panel compact-panel settings-panel" aria-labelledby="branding-heading">
+              <div class="panel-header compact"><div><span class="step-kicker">Preview settings</span><h3 id="branding-heading">Report Branding &amp; Layout</h3></div></div>
+              <div class="settings-body">
+                <label class="field"><span>Font family</span><select id="fontFamily"><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif" selected>Georgia</option><option value="'Times New Roman', serif">Times New Roman</option><option value="Calibri, 'Segoe UI', sans-serif">Calibri-style fallback</option><option value="system-ui, sans-serif">System Sans</option></select></label>
+                <div class="color-grid">
+                  <label class="color-field"><span>Font</span><input id="fontColor" type="color" value="#40525e"><output>#40525E</output></label>
+                  <label class="color-field"><span>Background</span><input id="backgroundColor" type="color" value="#ffffff"><output>#FFFFFF</output></label>
+                  <label class="color-field"><span>Accent</span><input id="accentColor" type="color" value="#12706a"><output>#12706A</output></label>
+                </div>
+                <label class="file-control" for="logoUpload"><span class="file-icon" aria-hidden="true">+</span><span><strong>Upload logo</strong><small id="logoFileName">PNG, JPG or SVG · local only</small></span><input id="logoUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+                <button class="remove-asset" id="removeLogo" type="button" hidden>Remove logo</button>
+                <label class="file-control" for="imageUpload"><span class="file-icon" aria-hidden="true">+</span><span><strong>Add report image</strong><small id="imageFileName">Optional image block · local only</small></span><input id="imageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+                <button class="remove-asset" id="removeImage" type="button" hidden>Remove image</button>
+                <div class="watermark-settings">
+                  <label class="switch-row"><span><strong>Watermark</strong><small>Display behind report content</small></span><input id="watermarkEnabled" type="checkbox" role="switch"><i aria-hidden="true"></i></label>
+                  <label class="field" id="watermarkField" hidden><span>Watermark text</span><input id="watermarkText" type="text" value="DRAFT" maxlength="40"></label>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel compact-panel template-panel" aria-labelledby="template-heading">
+              <div class="panel-header compact"><div><span class="step-kicker">Local library</span><h3 id="template-heading">Custom templates</h3></div></div>
+              <div class="template-body">
+                <p>Save section structure and numbering in this browser.</p>
+                <div class="inline-control"><label class="sr-only" for="templateName">Template name</label><input id="templateName" type="text" placeholder="Template name" maxlength="60"><button id="saveTemplate" type="button" disabled>Save</button></div>
+                <div class="template-library">
+                  <label class="field" for="savedTemplates"><span>Saved templates</span><select id="savedTemplates"><option value="">No saved templates</option></select></label>
+                  <div class="template-actions"><button id="loadTemplate" class="button button-secondary button-small" type="button" disabled>Load template</button><button id="deleteTemplate" class="button button-quiet button-small" type="button" disabled>Delete</button></div>
+                </div>
+                <small class="local-note">Stored locally on this device. Consultation content is not saved.</small>
+              </div>
+            </section>
+
             <section class="panel compact-panel export-panel" aria-labelledby="export-heading">
-              <div class="panel-header compact"><div><span class="step-kicker">Step 4 of 4</span><h3 id="export-heading">Export report</h3></div></div>
-              <button id="copyButton" class="export-option available" type="button" disabled><span class="export-file">CP</span><span><strong>Copy full report</strong><small>Copy formatted text</small></span><b>Available</b></button>
-              <button id="downloadButton" class="export-option available" type="button" disabled><span class="export-file">TXT</span><span><strong>Download text file</strong><small>Universal plain text</small></span><b>Available</b></button>
-              <div class="export-option"><span class="export-file">DOCX</span><span><strong>Editable Word report</strong><small>Professional template</small></span><b>Coming soon</b></div>
-              <div class="export-option"><span class="export-file">PDF</span><span><strong>Publication-ready PDF</strong><small>Final sharing format</small></span><b>Coming soon</b></div>
+              <div class="panel-header compact"><div><span class="step-kicker">Step 4 of 4</span><h3 id="export-heading">Export Format</h3></div></div>
+              <button id="downloadButton" class="export-option available" type="button" disabled><span class="export-file">TXT</span><span><strong>Download text file</strong><small>Current edited structure</small></span><b>Available now</b></button>
+              <div class="export-option"><span class="export-file">DOCX</span><span><strong>DOCX / Word</strong><small>Editable branded report</small></span><b>Coming soon</b></div>
+              <div class="export-option"><span class="export-file">PDF</span><span><strong>PDF</strong><small>Publication-ready sharing</small></span><b>Coming soon</b></div>
             </section>
           </aside>
         </div>
@@ -165,7 +198,7 @@ Priority actions identified by the group were: extend opening hours on a trial b
         <section class="report-area" id="reportArea" aria-labelledby="report-heading">
           <div class="report-toolbar">
             <div><span class="eyebrow">Structured draft</span><h2 id="report-heading">Report preview</h2></div>
-            <span class="draft-status" id="draftStatus"><i></i> Waiting for consultation input</span>
+            <div class="report-toolbar-actions"><button id="copyButton" class="button button-secondary button-small" type="button" disabled>Copy full report</button><span class="draft-status" id="draftStatus"><i></i> Waiting for consultation input</span></div>
           </div>
 
           <div class="empty-report" id="emptyReport">
@@ -176,14 +209,21 @@ Priority actions identified by the group were: extend opening hours on a trial b
           </div>
 
           <article class="report-document" id="reportDocument" hidden>
+            <div class="report-watermark" id="reportWatermark" hidden aria-hidden="true">DRAFT</div>
             <header class="report-cover">
-              <div class="report-brandline"><span></span> Consultation Report</div>
+              <img class="report-logo" id="reportLogo" alt="Organization logo" hidden>
+              <div class="report-brandline"><span></span><b id="reportTypeLabel">Consultation Report</b></div>
               <h2 id="reportTitle">Consultation Report</h2>
               <p id="reportSubtitle"></p>
               <dl class="report-meta" id="reportMeta"></dl>
             </header>
+            <img class="report-feature-image" id="reportFeatureImage" alt="Report feature" hidden>
+            <div class="section-workspace-bar">
+              <label>Numbering <select id="numberingStyle"><option value="automatic">Automatic · 01, 02, 03</option><option value="manual">Manual numbering</option><option value="none">No numbering</option></select></label>
+              <button id="addSection" class="button button-secondary button-small" type="button">+ Add custom section</button>
+            </div>
             <div id="reportSections"></div>
-            <p class="edit-note"><span aria-hidden="true">✎</span> All report sections are editable. Review the draft against your original notes before sharing.</p>
+            <p class="edit-note"><span aria-hidden="true">✎</span> Edit titles, numbering and content directly. Reorder or add sections to fit your reporting needs.</p>
           </article>
         </section>
       </div>
@@ -193,13 +233,13 @@ Priority actions identified by the group were: extend opening hours on a trial b
       <div class="shell">
         <div class="roadmap-intro"><div><span class="eyebrow">Future platform roadmap</span><h2>A clear path from drafting tool to consultation intelligence platform.</h2></div><p>Planned capabilities are shown for product direction only and are not included in this local prototype.</p></div>
         <div class="roadmap-grid">
-          <article class="roadmap-card featured"><span class="phase">Phase 2</span><h3>Professional publishing</h3><ul><li>AI-powered report generation with Gemini/OpenAI</li><li>DOCX export for editable Word reports</li><li>PDF export for final sharing</li></ul></article>
-          <article class="roadmap-card"><span class="phase">Phase 3</span><h3>Report templates</h3><ul><li>Consultation Report</li><li>Submission</li><li>Policy Brief</li><li>Internal Summary</li></ul></article>
-          <article class="roadmap-card"><span class="phase">Phase 4</span><h3>Consultation analysis</h3><ul><li>Multiple consultation analysis</li><li>Recurring theme detection</li><li>Cross-consultation insights</li></ul></article>
-          <article class="roadmap-card"><span class="phase">Phase 5</span><h3>Insight dashboards</h3><ul><li>Dashboard and visualizations</li></ul></article>
-          <article class="roadmap-card"><span class="phase">Phase 6</span><h3>Secure workspace</h3><ul><li>Login</li><li>Report history</li><li>Database</li></ul></article>
-          <article class="roadmap-card"><span class="phase">Phase 7</span><h3>Inclusive access</h3><ul><li>Multilingual support</li></ul></article>
-          <article class="roadmap-card wide"><span class="phase">Phase 8</span><h3>Connected consultation operations</h3><ul><li>Audio transcription</li><li>Transcript review</li><li>Collaboration features</li><li>Institutional knowledge base</li></ul></article>
+          <article class="roadmap-card featured"><span class="phase">Phase 2</span><h3>Connected report generation</h3><ul><li>Gemini integration</li><li>OpenAI integration</li><li>AI-generated reports</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 3</span><h3>Professional publishing</h3><ul><li>DOCX export</li><li>PDF export</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 4</span><h3>Audio workflow</h3><ul><li>Audio upload</li><li>Audio transcription</li><li>Transcript review</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 5</span><h3>Consultation analysis</h3><ul><li>Multiple consultation analysis</li><li>Recurring theme detection</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 6</span><h3>Insight dashboards</h3><ul><li>Dashboard</li><li>Analytics</li><li>Visualizations</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 7</span><h3>Secure workspace</h3><ul><li>Login</li><li>Report history</li><li>Database</li></ul></article>
+          <article class="roadmap-card wide"><span class="phase">Phase 8</span><h3>Institutional operations</h3><ul><li>Collaboration</li><li>Knowledge base</li><li>Institutional reporting</li></ul></article>
         </div>
       </div>
     </section>
