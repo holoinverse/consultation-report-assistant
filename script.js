@@ -1007,7 +1007,9 @@ async function buildDocx() {
   const headerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${headerContent.join("")}</w:hdr>`;
   const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr>${docxRun(footerRuns[0], { color, size: 16 })}${pageField}</w:p></w:ftr>`;
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="${wordFont}" w:hAnsi="${wordFont}"/><w:color w:val="${color}"/><w:sz w:val="22"/></w:rPr><w:pPr><w:spacing w:after="140" w:line="300" w:lineRule="auto"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="48"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:outlineLvl w:val="0"/><w:rPr><w:b/><w:color w:val="${accent}"/><w:sz w:val="34"/></w:rPr><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="160"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="28"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="560"/><w:shd w:fill="F4F1EA"/></w:pPr><w:rPr><w:i/></w:rPr></w:style></w:styles>`;
-  const numberingXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>${orderedNumIds.map(numId => `<w:num w:numId="${numId}"><w:abstractNumId w:val="2"/></w:num>`).join("")}</w:numbering>`;
+  const orderedAbstracts = orderedNumIds.map(numId => `<w:abstractNum w:abstractNumId="${numId}"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum>`).join("");
+  const orderedInstances = orderedNumIds.map(numId => `<w:num w:numId="${numId}"><w:abstractNumId w:val="${numId}"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>`).join("");
+  const numberingXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum>${orderedAbstracts}<w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>${orderedInstances}</w:numbering>`;
   const files = [
     { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
     { name: "_rels/.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>' },
@@ -1022,7 +1024,7 @@ async function buildDocx() {
 }
 
 function pdfSafeText(value) {
-  return String(value ?? "").normalize("NFKD").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/•/g, "-").replace(/[^\x20-\x7e]/g, "?").replace(/([\\()])/g, "\\$1");
+  return String(value ?? "").normalize("NFKD").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/•/g, "-").replace(/\s*·\s*/g, ", ").replace(/[^\x20-\x7e]/g, "?").replace(/([\\()])/g, "\\$1");
 }
 
 function pdfBytes(value) {
@@ -1114,7 +1116,7 @@ async function buildPdf() {
     const indent = options.indent || 0;
     const maxWidth = contentWidth - indent;
     const tokens = [];
-    runs.forEach(run => String(run.text || "").replace(/\s+/g, " ").split(/(\s+)/).filter(Boolean).forEach(text => tokens.push({ text, bold: run.bold || options.bold, italic: run.italic || options.italic, underline: run.underline })));
+    runs.forEach(run => String(run.text || "").replace(/\s*·\s*/g, ", ").replace(/\s+/g, " ").split(/(\s+)/).filter(Boolean).forEach(text => tokens.push({ text, bold: run.bold || options.bold, italic: run.italic || options.italic, underline: run.underline })));
     const lines = [[]];
     let width = 0;
     tokens.forEach(token => {
@@ -1130,9 +1132,13 @@ async function buildPdf() {
       if (options.center) x = (pageWidth - lineWidth) / 2;
       if (options.right) x = pageWidth - margin - lineWidth;
       const baseline = y - lineIndex * lineHeight;
+      const textColor = options.accent ? `${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)}` : `${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)}`;
+      const textCommands = [`BT ${textColor} rg 1 0 0 1 ${x.toFixed(2)} ${baseline.toFixed(2)} Tm`];
+      line.forEach(token => textCommands.push(`/${pdfFontKey(token)} ${size} Tf (${pdfSafeText(token.text)}) Tj`));
+      textCommands.push("ET");
+      currentPage.commands.push(textCommands.join(" "));
       line.forEach(token => {
         const tokenWidth = estimatedTextWidth(token.text, size, token);
-        currentPage.commands.push(`BT /${pdfFontKey(token)} ${size} Tf ${options.accent ? `${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)}` : `${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)}`} rg 1 0 0 1 ${x.toFixed(2)} ${baseline.toFixed(2)} Tm (${pdfSafeText(token.text)}) Tj ET`);
         if (token.underline && clean(token.text)) currentPage.commands.push(`${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} RG .6 w ${x.toFixed(2)} ${(baseline - 1.5).toFixed(2)} m ${(x + tokenWidth).toFixed(2)} ${(baseline - 1.5).toFixed(2)} l S`);
         x += tokenWidth;
       });
