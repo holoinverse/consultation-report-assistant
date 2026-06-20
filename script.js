@@ -21,7 +21,11 @@ const toast = $("#toast");
 
 const presets = {
   "Consultation Report": ["Executive Summary", "Key Findings", "Main Themes", "Community Feedback", "Recommendations", "Action Items", "Key Quotes", "Next Steps"],
+  "Community Consultation Report": ["Executive Summary", "Consultation Context", "Who We Heard From", "Community Priorities", "Stakeholder Feedback", "Recommendations", "Action Items", "Next Steps"],
   "Policy Brief": ["Executive Summary", "Policy Context", "Evidence and Findings", "Policy Options", "Recommendations", "Implementation Considerations", "Next Steps"],
+  "Executive Brief": ["Purpose", "Executive Summary", "Critical Findings", "Decisions Required", "Risks", "Recommended Actions", "Next Steps"],
+  "Meeting Report": ["Meeting Overview", "Attendees", "Discussion Summary", "Decisions", "Action Items", "Open Issues", "Next Meeting"],
+  "Submission Draft": ["Executive Summary", "About the Organization", "Submission Context", "Key Issues", "Evidence", "Recommendations", "Conclusion"],
   "Submission": ["Executive Summary", "About the Organization", "Consultation Context", "Key Issues", "Evidence", "Recommendations", "Conclusion"],
   "Internal Summary": ["Purpose", "Consultation Overview", "Key Findings", "Risks", "Decisions Required", "Action Items", "Next Steps"],
   "Workshop Summary": ["Workshop Overview", "Participants", "Discussion Themes", "Community Priorities", "Key Quotes", "Agreed Actions", "Next Steps"],
@@ -31,6 +35,7 @@ const presets = {
 
 const state = {
   generated: false,
+  generatedAt: "",
   reportType: "Consultation Report",
   numberingStyle: "automatic",
   sections: [],
@@ -66,7 +71,14 @@ const state = {
     type: "",
     duration: 0,
     dataUrl: "",
-    transcript: ""
+    transcript: "",
+    status: "draft",
+    approved: false,
+    nameCorrections: [],
+    organizationCorrections: [],
+    reviewNotes: "",
+    checks: { names: false, organizations: false, quotes: false },
+    reportTemplate: "Consultation Report"
   }
 };
 
@@ -134,6 +146,7 @@ function createBaseContent(data) {
     "Policy Context": `<p>The consultation evidence should be considered within the relevant policy, service and community context. The findings below identify practical implications for decision-makers.</p>`,
     "Evidence and Findings": `<ul>${evidenceList}</ul>`,
     "Key Findings": `<ul>${evidenceList}</ul>`,
+    "Critical Findings": `<ul>${evidenceList}</ul>`,
     "Main Themes": `<ul>${themes}</ul>`,
     "Discussion Themes": `<ul>${themes}</ul>`,
     "Community Feedback": `<p>Feedback reflected appreciation for existing community strengths and a clear expectation of practical follow-through. Participants emphasised accessible, responsive and community-led implementation.</p>${evidence.slice(0, 2).map(item => `<p>${escapeHTML(sentenceCase(item))}</p>`).join("")}`,
@@ -142,19 +155,27 @@ function createBaseContent(data) {
     "Recommendations": `<ol>${priorityList || "<li>Validate the emerging priorities with participants and relevant decision-makers.</li><li>Develop an implementation plan with clear ownership and timeframes.</li>"}</ol>`,
     "Policy Options": `<ol>${priorityList}</ol>`,
     "Action Items": `<ol>${actionsList}</ol>`,
+    "Recommended Actions": `<ol>${actionsList}</ol>`,
     "Agreed Actions": `<ol>${actionsList}</ol>`,
     "Key Quotes": quotes.length ? quotes.slice(0, 5).map(quote => `<blockquote>“${escapeHTML(quote)}”</blockquote>`).join("") : "<p>No verified direct quotations were identified in the source notes.</p>",
     "Next Steps": `<ol><li>Review this draft against the original notes for accuracy and balance.</li><li>Confirm priorities, responsibilities and delivery timeframes.</li>${followUp[0] ? `<li>${escapeHTML(sentenceCase(followUp[0]))}</li>` : "<li>Provide participants with an update on decisions and planned actions.</li>"}<li>Document progress and return to the community with outcomes.</li></ol>`,
     "Consultation Overview": `<p>${escapeHTML(data.title)} was conducted as a ${escapeHTML(data.consultationType.toLowerCase())}${data.location ? ` in ${escapeHTML(data.location)}` : ""}${data.participants ? ` with ${escapeHTML(data.participants)}` : ""}.</p>`,
     "Consultation Context": `<p>${escapeHTML(data.title)} provided a structured opportunity to understand community experience, priorities and expectations.</p>`,
+    "Submission Context": `<p>This submission draws on consultation evidence from ${escapeHTML(data.title)} and identifies matters for consideration by decision-makers.</p>`,
     "Workshop Overview": `<p>The workshop brought together ${escapeHTML(data.participants || "participants")} to discuss priorities, opportunities and practical next steps.</p>`,
     "Participants": `<p>${escapeHTML(data.participants || "Participant details were not specified.")}</p>`,
+    "Attendees": `<p>${escapeHTML(data.participants || "Attendee details were not specified.")}</p>`,
     "Who We Heard From": `<p>${escapeHTML(data.participants || "Participant details were not specified.")}</p>`,
     "Engagement Approach": `<p>The engagement used a ${escapeHTML(data.consultationType.toLowerCase())} format to gather qualitative feedback and identify shared priorities.</p>`,
     "Key Issues": `<ul>${evidenceList}</ul>`,
     "Evidence": `<ul>${evidenceList}</ul>`,
     "Risks": `<p>Key delivery risks should be reviewed with responsible teams, including access barriers, unclear ownership, insufficient follow-through and limited communication with participants.</p>`,
     "Decisions Required": `<ol>${priorityList}</ol>`,
+    "Decisions": `<ol>${priorityList}</ol>`,
+    "Discussion Summary": `<ul>${themes}</ul>`,
+    "Meeting Overview": `<p>${escapeHTML(data.title)} brought together ${escapeHTML(data.participants || "participants")} to review priorities, evidence and required follow-up.</p>`,
+    "Open Issues": `<ul>${evidenceList}</ul>`,
+    "Next Meeting": `<p>Confirm the next meeting date, responsible participants and matters requiring progress updates.</p>`,
     "Implementation Considerations": `<p>Implementation should define clear ownership, realistic timeframes, accessible communication and a process for reporting progress to participants.</p>`,
     "About the Organization": `<p>${escapeHTML(data.organization)} commissioned or prepared this report to support transparent, evidence-informed engagement and decision-making.</p>`,
     "Conclusion": `<p>The consultation provides a practical foundation for action. Timely decisions, transparent communication and continued community involvement will be important to maintaining trust.</p>`
@@ -207,7 +228,7 @@ function renderSections() {
       <div class="editable-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Edit ${escapeHTML(section.title)} content" data-field="content">${section.content}</div>
     </section>`).join("");
   numberingStyle.value = state.numberingStyle;
-  if (state.generated) renderTableOfContents();
+  if (state.generated) { renderTableOfContents(); updateReportIntelligence(); }
 }
 
 function renderHeader(data = getData()) {
@@ -283,8 +304,7 @@ function showGeneratedReport(data) {
   saveTemplateButton.disabled = !clean($("#templateName").value);
   $("#draftStatus").classList.add("ready");
   $("#draftStatus").innerHTML = "<i></i> Draft ready for professional review";
-  $$(".quality-list li").forEach(item => item.classList.add("checked"));
-  $("#qualityScore").textContent = "4/4";
+  updateReportIntelligence();
   setProgress("report");
 }
 
@@ -302,6 +322,79 @@ function htmlToText(html) {
   const helper = document.createElement("div");
   helper.innerHTML = html;
   return helper.innerText.trim();
+}
+
+function sectionElementsMatching(pattern) {
+  return state.sections.filter(section => pattern.test(section.title));
+}
+
+function contentItemCount(pattern) {
+  return sectionElementsMatching(pattern).reduce((total, section) => {
+    const helper = document.createElement("div");
+    helper.innerHTML = section.content;
+    const items = helper.querySelectorAll("li").length;
+    return total + (items || (clean(helper.innerText) ? 1 : 0));
+  }, 0);
+}
+
+function analyzeReport() {
+  const data = getData();
+  const sectionTexts = state.sections.map(section => htmlToText(section.content));
+  const allText = sectionTexts.join(" ");
+  const words = clean(allText) ? clean(allText).split(/\s+/).length : 0;
+  const recommendations = contentItemCount(/recommend|policy options|decisions required/i);
+  const actions = contentItemCount(/action|next steps|agreed actions|recommended actions/i);
+  const quoteBlocks = state.sections.reduce((total, section) => {
+    const helper = document.createElement("div"); helper.innerHTML = section.content;
+    return total + helper.querySelectorAll("blockquote").length;
+  }, 0);
+  const inlineQuotes = (allText.match(/[“"]([^”"]{10,220})[”"]/g) || []).length;
+  const quotes = Math.max(quoteBlocks, inlineQuotes);
+  const themeSections = sectionElementsMatching(/theme|priorit|key issue|discussion/i);
+  const themesFromLists = themeSections.reduce((total, section) => {
+    const helper = document.createElement("div"); helper.innerHTML = section.content;
+    return total + helper.querySelectorAll("li").length;
+  }, 0);
+  const themeSignals = [["access", "transport"], ["language", "multilingual", "inclusive"], ["youth", "young people"], ["service", "support"], ["safety", "risk"]];
+  const themes = themesFromLists || themeSignals.filter(group => group.some(term => allText.toLowerCase().includes(term))).length;
+  const emptySections = state.sections.filter((section, index) => !clean(section.title) || !clean(sectionTexts[index])).length;
+  const hasSummary = sectionElementsMatching(/executive summary|^summary$|purpose/i).some(section => clean(htmlToText(section.content)));
+  const hasFindings = sectionElementsMatching(/finding|evidence|discussion summary|key issue/i).some(section => clean(htmlToText(section.content)));
+  return { data, words, recommendations, actions, quotes, themes, emptySections, hasSummary, hasFindings };
+}
+
+function updateReportIntelligence() {
+  if (!state.generated) {
+    $("#reportIntelligence").hidden = true;
+    $("#qualityScore").textContent = "0/0";
+    $("#qualityList").innerHTML = '<li class="pending"><span>·</span><div><strong>Waiting for a draft</strong><small>Content checks will run automatically.</small></div></li>';
+    return;
+  }
+  const analysis = analyzeReport();
+  $("#reportIntelligence").hidden = false;
+  $("#summarySections").textContent = state.sections.length;
+  $("#summaryWords").textContent = analysis.words.toLocaleString();
+  $("#summaryRecommendations").textContent = analysis.recommendations;
+  $("#summaryActions").textContent = analysis.actions;
+  $("#summaryQuotes").textContent = analysis.quotes;
+  $("#summaryDate").textContent = state.generatedAt ? new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric" }).format(new Date(state.generatedAt)) : "Today";
+  $("#insightParticipants").textContent = analysis.data.participants || "Not specified";
+  $("#insightThemes").textContent = analysis.themes;
+  $("#insightRecommendations").textContent = analysis.recommendations;
+  $("#insightActions").textContent = analysis.actions;
+  $("#insightQuotes").textContent = analysis.quotes;
+  const checks = [
+    [analysis.hasSummary, "Executive summary present", "Add a clear summary or purpose section."],
+    [analysis.hasFindings, "Findings or evidence present", "Add findings, evidence or a discussion summary."],
+    [analysis.recommendations > 0, "Recommendations present", "Recommendations section is missing or empty."],
+    [analysis.actions > 0, "Action items present", "Action items or next steps are missing."],
+    [analysis.quotes > 0, "Direct quotes detected", "No direct quotes detected."],
+    [analysis.emptySections === 0, "All sections contain content", `${analysis.emptySections} empty section${analysis.emptySections === 1 ? "" : "s"} detected.`]
+  ];
+  const passed = checks.filter(check => check[0]).length;
+  $("#qualityScore").textContent = `${passed}/${checks.length}`;
+  $("#qualityList").innerHTML = checks.map(([success, title, help]) => `<li class="${success ? "checked" : "warning"}"><span>${success ? "✓" : "!"}</span><div><strong>${escapeHTML(title)}</strong><small>${escapeHTML(success ? "Validated from the current report." : help)}</small></div></li>`).join("");
+  $("#qualityHelp").textContent = passed === checks.length ? "All current report health checks pass." : "Review highlighted items before publication.";
 }
 
 function reportAsText() {
@@ -352,8 +445,8 @@ function refreshTemplateLibrary(selectedId = "") {
   savedTemplates.innerHTML = templates.length ? `<option value="">Select a template</option>${templates.map(template => `<option value="${escapeHTML(template.id)}">${escapeHTML(template.name)}</option>`).join("")}` : '<option value="">No saved templates</option>';
   savedTemplates.value = selectedId;
   const hasSelection = Boolean(savedTemplates.value);
-  $("#loadTemplate").disabled = !hasSelection;
-  $("#deleteTemplate").disabled = !hasSelection;
+  ["#loadTemplate", "#previewTemplate", "#renameTemplate", "#duplicateTemplate", "#deleteTemplate"].forEach(selector => { $(selector).disabled = !hasSelection; });
+  if (!hasSelection) $("#templatePreview").hidden = true;
 }
 
 function saveTemplate() {
@@ -364,14 +457,22 @@ function saveTemplate() {
   const template = {
     id: existing?.id || `template-${Date.now()}`,
     name,
+    description: clean($("#templateDescription").value),
+    category: $("#templateCategory").value,
+    savedAt: existing?.savedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     reportType: state.reportType,
     numberingStyle: state.numberingStyle,
-    sections: state.sections.map((section, index) => ({ number: effectiveNumber(section, index), title: section.title }))
+    sections: state.sections.map((section, index) => ({ number: effectiveNumber(section, index), title: section.title })),
+    branding: { ...state.branding },
+    layout: { ...state.layout },
+    exportPreferences: { coverPage: state.layout.coverPage, tableOfContents: state.layout.tableOfContents, pageNumbers: state.layout.pageNumbers }
   };
   const updated = existing ? templates.map(item => item.id === existing.id ? template : item) : [...templates, template];
   if (!writeTemplates(updated)) return;
   refreshTemplateLibrary(template.id);
   $("#templateName").value = "";
+  $("#templateDescription").value = "";
   saveTemplateButton.disabled = true;
   showToast(existing ? "Local template updated." : "Custom template saved in this browser.");
 }
@@ -382,8 +483,14 @@ function loadTemplate() {
   state.loadedTemplate = template;
   state.reportType = template.reportType;
   state.numberingStyle = template.numberingStyle;
+  if (template.branding) state.branding = { ...state.branding, ...template.branding };
+  if (template.layout) state.layout = { ...state.layout, ...template.layout };
   reportType.value = presets[template.reportType] ? template.reportType : "Custom";
   numberingStyle.value = state.numberingStyle;
+  restoreBrandingControls();
+  restoreLayoutControls();
+  applyBranding();
+  applyLayoutPreview();
   if (state.generated) {
     const existingContent = Object.fromEntries(state.sections.map(section => [section.title, section.content]));
     state.sections = template.sections.map(item => newSection(item.title, existingContent[item.title] || "<p>Add evidence, analysis or professional commentary for this section.</p>", item.number));
@@ -393,11 +500,52 @@ function loadTemplate() {
   showToast(`“${template.name}” loaded. ${state.generated ? "Report structure updated." : "Generate a draft to apply it."}`);
 }
 
+function previewTemplate() {
+  const template = readTemplates().find(item => item.id === savedTemplates.value);
+  if (!template) return;
+  const preview = $("#templatePreview");
+  const savedDate = template.savedAt ? new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric" }).format(new Date(template.savedAt)) : "Legacy template";
+  preview.innerHTML = `<h4>${escapeHTML(template.name)}</h4><p>${escapeHTML(template.description || "No description provided.")}</p><dl><dt>Category</dt><dd>${escapeHTML(template.category || "Custom")}</dd><dt>Saved</dt><dd>${escapeHTML(savedDate)}</dd><dt>Report type</dt><dd>${escapeHTML(template.reportType || "Custom")}</dd><dt>Numbering</dt><dd>${escapeHTML(template.numberingStyle || "automatic")}</dd><dt>Design</dt><dd>${template.branding ? "Branding and export settings included" : "Structure only (legacy)"}</dd></dl><ul>${(template.sections || []).map(section => `<li>${escapeHTML(section.number ? `${section.number} ${section.title}` : section.title)}</li>`).join("")}</ul>`;
+  preview.hidden = false;
+}
+
+function renameTemplate() {
+  const newName = clean($("#templateName").value);
+  const templates = readTemplates();
+  const template = templates.find(item => item.id === savedTemplates.value);
+  if (!template) return;
+  if (!newName) { $("#templateName").focus(); showToast("Enter the new template name, then choose Rename."); return; }
+  template.name = newName;
+  template.updatedAt = new Date().toISOString();
+  if (!writeTemplates(templates)) return;
+  $("#templateName").value = "";
+  refreshTemplateLibrary(template.id);
+  previewTemplate();
+  showToast("Template renamed.");
+}
+
+function duplicateTemplate() {
+  const templates = readTemplates();
+  const template = templates.find(item => item.id === savedTemplates.value);
+  if (!template) return;
+  const copy = JSON.parse(JSON.stringify(template));
+  copy.id = `template-${Date.now()}`;
+  copy.name = clean($("#templateName").value) || `${template.name} Copy`;
+  copy.savedAt = new Date().toISOString();
+  copy.updatedAt = copy.savedAt;
+  if (!writeTemplates([...templates, copy])) return;
+  $("#templateName").value = "";
+  refreshTemplateLibrary(copy.id);
+  previewTemplate();
+  showToast("Template duplicated locally.");
+}
+
 function removeTemplate() {
   const template = readTemplates().find(item => item.id === savedTemplates.value);
   if (!template) return;
   writeTemplates(readTemplates().filter(item => item.id !== template.id));
   refreshTemplateLibrary();
+  $("#templatePreview").hidden = true;
   showToast(`“${template.name}” removed from this browser.`);
 }
 
@@ -451,6 +599,7 @@ function serializeProject() {
     consultation: getData(),
     report: {
       generated: state.generated,
+      generatedAt: state.generatedAt,
       reportType: state.reportType,
       numberingStyle: state.numberingStyle,
       sections: state.sections.map(section => ({ number: section.number, title: section.title, content: section.content }))
@@ -506,15 +655,60 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function renderCorrectionRows(type) {
+  const isName = type === "name";
+  const key = isName ? "nameCorrections" : "organizationCorrections";
+  const container = $(isName ? "#nameCorrections" : "#organizationCorrections");
+  const items = state.audio[key] || [];
+  container.innerHTML = items.length ? items.map(item => `<div class="correction-row" data-correction-id="${escapeHTML(item.id)}" data-correction-type="${type}"><input data-correction-field="original" value="${escapeHTML(item.original)}" placeholder="Original"><input data-correction-field="corrected" value="${escapeHTML(item.corrected)}" placeholder="Corrected"><button type="button" data-remove-correction aria-label="Remove correction">×</button></div>`).join("") : `<p>No ${isName ? "name" : "organization"} corrections added.</p>`;
+}
+
+function transcriptReady() {
+  return Boolean(clean(state.audio.transcript) && state.audio.approved && state.audio.checks.names && state.audio.checks.organizations && state.audio.checks.quotes);
+}
+
+function updateTranscriptWorkflow() {
+  const hasTranscript = Boolean(clean(state.audio.transcript));
+  const ready = transcriptReady();
+  $("#useTranscript").disabled = !hasTranscript;
+  $("#generateFromTranscript").disabled = !ready;
+  $("#transcriptReadiness").textContent = ready ? "Ready for report" : "Review required";
+  $("#transcriptReadiness").classList.toggle("ready", ready);
+  $("#flowReview").classList.toggle("complete", hasTranscript);
+  $("#flowCorrections").classList.toggle("complete", state.audio.checks.names && state.audio.checks.organizations);
+  $("#flowApproval").classList.toggle("complete", state.audio.approved);
+  $("#flowReport").classList.toggle("complete", state.generated && hasTranscript && clean(notes.value) === clean(applyTranscriptCorrections(state.audio.transcript)));
+}
+
+function applyTranscriptCorrections(transcript) {
+  let output = transcript;
+  [...(state.audio.nameCorrections || []), ...(state.audio.organizationCorrections || [])].forEach(item => {
+    if (!clean(item.original) || !clean(item.corrected)) return;
+    const escaped = item.original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    output = output.replace(new RegExp(`\\b${escaped}\\b`, "gi"), item.corrected);
+  });
+  return output;
+}
+
 function renderAudioState() {
   const hasAudio = Boolean(state.audio.dataUrl);
   $("#audioFileCard").hidden = !hasAudio;
   $("#audioFileName").textContent = state.audio.name || "Audio file";
   $("#audioFileMeta").textContent = [formatFileSize(state.audio.size), state.audio.type || "Audio", state.audio.duration ? `${Math.round(state.audio.duration / 60)} min` : ""].filter(Boolean).join(" · ");
-  if (hasAudio && $("#audioPlayer").getAttribute("src") !== state.audio.dataUrl) $("#audioPlayer").src = state.audio.dataUrl;
-  else { $("#audioPlayer").removeAttribute("src"); $("#audioPlayer").load(); }
+  if (hasAudio) {
+    if ($("#audioPlayer").getAttribute("src") !== state.audio.dataUrl) $("#audioPlayer").src = state.audio.dataUrl;
+  } else { $("#audioPlayer").removeAttribute("src"); $("#audioPlayer").load(); }
   $("#transcriptText").value = state.audio.transcript || "";
-  $("#useTranscript").disabled = !clean(state.audio.transcript);
+  setControlValue("#transcriptStatus", state.audio.status || "draft");
+  setControlValue("#transcriptApproved", state.audio.approved);
+  setControlValue("#transcriptReviewNotes", state.audio.reviewNotes || "");
+  setControlValue("#namesReviewed", state.audio.checks?.names);
+  setControlValue("#organizationsReviewed", state.audio.checks?.organizations);
+  setControlValue("#quotesReviewed", state.audio.checks?.quotes);
+  setControlValue("#transcriptReportTemplate", state.audio.reportTemplate || "Consultation Report");
+  renderCorrectionRows("name");
+  renderCorrectionRows("organization");
+  updateTranscriptWorkflow();
 }
 
 function loadAudioFile(file) {
@@ -534,7 +728,7 @@ function loadAudioFile(file) {
 }
 
 function removeAudioFile() {
-  state.audio = { name: "", size: 0, type: "", duration: 0, dataUrl: "", transcript: state.audio.transcript || "" };
+  state.audio = { ...state.audio, name: "", size: 0, type: "", duration: 0, dataUrl: "", transcript: state.audio.transcript || "" };
   $("#audioUpload").value = "";
   renderAudioState();
   showToast("Audio removed. The transcript has been retained.");
@@ -552,6 +746,7 @@ function loadProjectFile(file) {
         if (control) control.value = value ?? "";
       });
       state.generated = Boolean(project.report.generated);
+      state.generatedAt = project.report.generatedAt || project.savedAt || "";
       state.reportType = project.report.reportType || project.consultation.reportType || "Consultation Report";
       state.numberingStyle = project.report.numberingStyle || "automatic";
       state.sections = (project.report.sections || []).map((section, index) => newSection(section.title || "Untitled Section", section.content || "<p></p>", section.number || String(index + 1).padStart(2, "0")));
@@ -559,6 +754,9 @@ function loadProjectFile(file) {
       state.branding = { ...state.branding, ...(project.branding || {}) };
       state.layout = { ...state.layout, ...(project.layout || {}) };
       state.audio = { ...state.audio, ...(project.audio || {}) };
+      state.audio.checks = { names: false, organizations: false, quotes: false, ...(state.audio.checks || {}) };
+      state.audio.nameCorrections = state.audio.nameCorrections || [];
+      state.audio.organizationCorrections = state.audio.organizationCorrections || [];
       reportType.value = presets[state.reportType] ? state.reportType : "Custom";
       numberingStyle.value = state.numberingStyle;
       restoreBrandingControls();
@@ -585,7 +783,7 @@ function loadProjectFile(file) {
 function resetProfessionalState() {
   state.branding = { fontFamily: "Georgia, serif", fontColor: "#40525e", backgroundColor: "#ffffff", accentColor: "#12706a", logo: "", image: "", watermarkEnabled: false, watermarkText: "DRAFT", logoName: "", imageName: "" };
   state.layout = { coverPage: true, tableOfContents: false, pageNumbers: true, headerText: "", headerOrganization: true, headerDate: false, footerText: "", footerOrganization: false, footerDate: true, confidentialityEnabled: false, confidentialityText: "Confidential — for authorised recipients only" };
-  state.audio = { name: "", size: 0, type: "", duration: 0, dataUrl: "", transcript: "" };
+  state.audio = { name: "", size: 0, type: "", duration: 0, dataUrl: "", transcript: "", status: "draft", approved: false, nameCorrections: [], organizationCorrections: [], reviewNotes: "", checks: { names: false, organizations: false, quotes: false }, reportTemplate: "Consultation Report" };
   restoreBrandingControls(); restoreLayoutControls(); renderAudioState(); applyBranding(); applyLayoutPreview();
   $("#projectNameDisplay").textContent = "Untitled local project";
 }
@@ -979,6 +1177,7 @@ form.addEventListener("submit", event => {
   if (!state.loadedTemplate) state.numberingStyle = numberingStyle.value || "automatic";
   state.sections = structureForGeneration(data, createBaseContent(data));
   state.generated = true;
+  state.generatedAt = new Date().toISOString();
   setProgress("review");
   showGeneratedReport(data);
   showToast("Structured draft created. Every section can now be adapted.");
@@ -993,6 +1192,7 @@ reportSections.addEventListener("input", event => {
   if (event.target.dataset.field === "title") { section.title = event.target.value; renderTableOfContents(); }
   if (event.target.dataset.field === "number") section.number = event.target.value;
   if (event.target.dataset.field === "content") section.content = event.target.innerHTML;
+  updateReportIntelligence();
 });
 
 reportSections.addEventListener("mousedown", event => {
@@ -1009,6 +1209,7 @@ reportSections.addEventListener("click", event => {
   editor.focus();
   document.execCommand(tool.dataset.command, false, tool.dataset.value || null);
   section.content = editor.innerHTML;
+  updateReportIntelligence();
 });
 
 reportSections.addEventListener("click", event => {
@@ -1058,7 +1259,7 @@ reportType.addEventListener("change", () => {
 });
 
 form.addEventListener("input", event => {
-  if (state.generated && event.target !== notes && event.target !== reportType) { renderHeader(); applyLayoutPreview(); }
+  if (state.generated && event.target !== notes && event.target !== reportType) { renderHeader(); applyLayoutPreview(); updateReportIntelligence(); }
 });
 
 copyButton.addEventListener("click", async () => {
@@ -1110,13 +1311,13 @@ $("#clearButton").addEventListener("click", () => {
   form.reset();
   [...form.elements].forEach(element => { if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") element.value = ""; });
   reportType.value = "Consultation Report";
-  state.generated = false; state.reportType = "Consultation Report"; state.numberingStyle = "automatic"; state.sections = []; state.loadedTemplate = null;
+  state.generated = false; state.generatedAt = ""; state.reportType = "Consultation Report"; state.numberingStyle = "automatic"; state.sections = []; state.loadedTemplate = null;
   numberingStyle.value = "automatic";
   selectTab("notes"); updateWordCount();
   $("#emptyReport").hidden = false; reportDocument.hidden = true; reportSections.innerHTML = "";
   copyButton.disabled = true; downloadButton.disabled = true; docxButton.disabled = true; pdfButton.disabled = true; saveTemplateButton.disabled = true;
   $("#draftStatus").classList.remove("ready"); $("#draftStatus").innerHTML = "<i></i> Waiting for consultation input";
-  $$(".quality-list li").forEach(item => item.classList.remove("checked")); $("#qualityScore").textContent = "0/4";
+  updateReportIntelligence();
   setProgress("input"); $("#title").focus(); showToast("Form cleared. Saved templates remain available.");
 });
 
@@ -1134,13 +1335,58 @@ $("#audioTab").addEventListener("click", () => selectTab("audio"));
 notes.addEventListener("input", updateWordCount);
 $("#audioUpload").addEventListener("change", event => loadAudioFile(event.target.files?.[0]));
 $("#removeAudio").addEventListener("click", removeAudioFile);
-$("#transcriptText").addEventListener("input", event => { state.audio.transcript = event.target.value; $("#useTranscript").disabled = !clean(event.target.value); });
+$("#transcriptText").addEventListener("input", event => { state.audio.transcript = event.target.value; updateTranscriptWorkflow(); });
 $("#useTranscript").addEventListener("click", () => {
   notes.value = state.audio.transcript;
   updateWordCount();
   selectTab("notes");
   notes.focus();
   showToast("Transcript copied into consultation notes and ready for report generation.");
+});
+$("#transcriptStatus").addEventListener("change", event => { state.audio.status = event.target.value; state.audio.approved = event.target.value === "approved"; $("#transcriptApproved").checked = state.audio.approved; updateTranscriptWorkflow(); });
+$("#transcriptApproved").addEventListener("change", event => { state.audio.approved = event.target.checked; state.audio.status = event.target.checked ? "approved" : "review"; $("#transcriptStatus").value = state.audio.status; updateTranscriptWorkflow(); });
+$("#transcriptReviewNotes").addEventListener("input", event => { state.audio.reviewNotes = event.target.value; });
+[["#namesReviewed", "names"], ["#organizationsReviewed", "organizations"], ["#quotesReviewed", "quotes"]].forEach(([selector, key]) => {
+  $(selector).addEventListener("change", event => { state.audio.checks[key] = event.target.checked; updateTranscriptWorkflow(); });
+});
+$("#transcriptReportTemplate").addEventListener("change", event => { state.audio.reportTemplate = event.target.value; });
+
+function addCorrection(type) {
+  const key = type === "name" ? "nameCorrections" : "organizationCorrections";
+  state.audio[key].push({ id: `correction-${Date.now()}-${Math.random().toString(16).slice(2)}`, original: "", corrected: "" });
+  renderCorrectionRows(type);
+}
+
+$("#addNameCorrection").addEventListener("click", () => addCorrection("name"));
+$("#addOrganizationCorrection").addEventListener("click", () => addCorrection("organization"));
+[$("#nameCorrections"), $("#organizationCorrections")].forEach(container => {
+  container.addEventListener("input", event => {
+    const row = event.target.closest("[data-correction-id]");
+    if (!row || !event.target.dataset.correctionField) return;
+    const key = row.dataset.correctionType === "name" ? "nameCorrections" : "organizationCorrections";
+    const item = state.audio[key].find(correction => correction.id === row.dataset.correctionId);
+    if (item) item[event.target.dataset.correctionField] = event.target.value;
+  });
+  container.addEventListener("click", event => {
+    const button = event.target.closest("[data-remove-correction]");
+    const row = event.target.closest("[data-correction-id]");
+    if (!button || !row) return;
+    const key = row.dataset.correctionType === "name" ? "nameCorrections" : "organizationCorrections";
+    state.audio[key] = state.audio[key].filter(item => item.id !== row.dataset.correctionId);
+    renderCorrectionRows(row.dataset.correctionType);
+  });
+});
+
+$("#generateFromTranscript").addEventListener("click", () => {
+  if (!transcriptReady()) { showToast("Approve the transcript and complete all review checks first."); return; }
+  notes.value = applyTranscriptCorrections(state.audio.transcript);
+  reportType.value = state.audio.reportTemplate;
+  state.reportType = state.audio.reportTemplate;
+  state.loadedTemplate = null;
+  updateWordCount();
+  selectTab("notes");
+  form.requestSubmit();
+  updateTranscriptWorkflow();
 });
 
 $("#fontFamily").addEventListener("change", event => { state.branding.fontFamily = event.target.value; applyBranding(); });
@@ -1166,9 +1412,17 @@ Object.entries(layoutControlMap).forEach(([selector, key]) => {
 
 $("#templateName").addEventListener("input", event => { saveTemplateButton.disabled = !state.generated || !clean(event.target.value); });
 saveTemplateButton.addEventListener("click", saveTemplate);
-savedTemplates.addEventListener("change", () => { const enabled = Boolean(savedTemplates.value); $("#loadTemplate").disabled = !enabled; $("#deleteTemplate").disabled = !enabled; });
+savedTemplates.addEventListener("change", () => { const enabled = Boolean(savedTemplates.value); ["#loadTemplate", "#previewTemplate", "#renameTemplate", "#duplicateTemplate", "#deleteTemplate"].forEach(selector => { $(selector).disabled = !enabled; }); $("#templatePreview").hidden = true; });
 $("#loadTemplate").addEventListener("click", loadTemplate);
+$("#previewTemplate").addEventListener("click", previewTemplate);
+$("#renameTemplate").addEventListener("click", renameTemplate);
+$("#duplicateTemplate").addEventListener("click", duplicateTemplate);
 $("#deleteTemplate").addEventListener("click", removeTemplate);
+$("#applyBuiltinTemplate").addEventListener("click", () => {
+  reportType.value = $("#builtinTemplates").value;
+  reportType.dispatchEvent(new Event("change", { bubbles: true }));
+  showToast(`${reportType.value} structure selected. Everything remains editable.`);
+});
 
 updateWordCount();
 refreshTemplateLibrary();

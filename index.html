@@ -95,7 +95,7 @@
                 <legend>Consultation details</legend>
                 <div class="form-grid">
                   <label class="field full"><span>Consultation title <b aria-hidden="true">*</b></span><input id="title" name="title" type="text" value="Neighbourhood Wellbeing Consultation" required></label>
-                  <label class="field full"><span>Report type</span><select id="reportType" name="reportType"><option>Consultation Report</option><option>Policy Brief</option><option>Submission</option><option>Internal Summary</option><option>Workshop Summary</option><option>Community Engagement Report</option><option>Custom</option></select><small class="field-help">Select a starting structure. Every section remains editable.</small></label>
+                  <label class="field full"><span>Report type</span><select id="reportType" name="reportType"><option>Consultation Report</option><option>Community Consultation Report</option><option>Workshop Summary</option><option>Submission Draft</option><option>Policy Brief</option><option>Executive Brief</option><option>Meeting Report</option><option>Community Engagement Report</option><option>Submission</option><option>Internal Summary</option><option>Custom</option></select><small class="field-help">Select a starting structure. Every section remains editable.</small></label>
                   <label class="field"><span>Organization / Community name <b aria-hidden="true">*</b></span><input id="organization" name="organization" type="text" value="Northside Community Partnership" required></label>
                   <label class="field"><span>Prepared for</span><input id="preparedFor" name="preparedFor" type="text" value="Community Development Committee"></label>
                   <label class="field"><span>Prepared by</span><input id="preparedBy" name="preparedBy" type="text" value="Engagement and Insights Team"></label>
@@ -146,9 +146,34 @@ Priority actions identified by the group were: extend opening hours on a trial b
                   <div class="transcript-heading"><div><span class="step-kicker">Transcript review foundation</span><h4>Transcript workspace</h4></div><span class="foundation-badge">Manual input</span></div>
                   <label class="field" for="transcriptText"><span>Transcript</span><textarea id="transcriptText" rows="8" placeholder="Paste or type a transcript here. Automatic transcription will be added in a future release."></textarea></label>
                   <div class="transcript-actions"><small>Review and edit locally, then use the transcript as the source for report generation.</small><button class="button button-secondary button-small" id="useTranscript" type="button" disabled>Use transcript as notes</button></div>
+                  <div class="transcript-review-tools">
+                    <div class="review-status-row">
+                      <label class="field"><span>Transcript status</span><select id="transcriptStatus"><option value="draft">Draft</option><option value="review">In review</option><option value="approved">Approved</option></select></label>
+                      <label class="switch-row"><span><strong>Transcript approved</strong><small>Required before report generation</small></span><input id="transcriptApproved" type="checkbox" role="switch"><i aria-hidden="true"></i></label>
+                    </div>
+                    <section class="correction-group" aria-labelledby="names-heading">
+                      <div class="correction-heading"><div><strong id="names-heading">Name corrections</strong><small>Confirm participant and stakeholder names.</small></div><button id="addNameCorrection" type="button">+ Add</button></div>
+                      <div id="nameCorrections" class="correction-list"><p>No name corrections added.</p></div>
+                    </section>
+                    <section class="correction-group" aria-labelledby="organizations-heading">
+                      <div class="correction-heading"><div><strong id="organizations-heading">Organization corrections</strong><small>Standardize organization and community names.</small></div><button id="addOrganizationCorrection" type="button">+ Add</button></div>
+                      <div id="organizationCorrections" class="correction-list"><p>No organization corrections added.</p></div>
+                    </section>
+                    <label class="field" for="transcriptReviewNotes"><span>Review notes</span><textarea id="transcriptReviewNotes" rows="4" placeholder="Record uncertainties, consent notes or follow-up checks."></textarea></label>
+                    <div class="transcript-checklist" aria-labelledby="validation-heading">
+                      <div><strong id="validation-heading">Validation checklist</strong><span id="transcriptReadiness" class="readiness-badge">Review required</span></div>
+                      <label><input id="namesReviewed" type="checkbox"> Names reviewed</label>
+                      <label><input id="organizationsReviewed" type="checkbox"> Organizations reviewed</label>
+                      <label><input id="quotesReviewed" type="checkbox"> Quotes reviewed</label>
+                    </div>
+                    <div class="transcript-report-action">
+                      <label class="field"><span>Report template</span><select id="transcriptReportTemplate"><option>Consultation Report</option><option>Community Consultation Report</option><option>Workshop Summary</option><option>Submission Draft</option><option>Policy Brief</option><option>Executive Brief</option><option>Meeting Report</option><option>Community Engagement Report</option></select></label>
+                      <button id="generateFromTranscript" class="button button-primary" type="button" disabled>Generate report from approved transcript <span aria-hidden="true">→</span></button>
+                    </div>
+                  </div>
                 </div>
                 <div class="future-flow" aria-label="Audio workflow">
-                  <span class="complete">Audio Upload</span><i>→</i><span>Transcript Review</span><i>→</i><span>Transcript Editing</span><i>→</i><span>Structured Report</span>
+                  <span class="complete">Audio Upload</span><i>→</i><span id="flowReview">Transcript Review</span><i>→</i><span id="flowCorrections">Correct Names &amp; Organizations</span><i>→</i><span id="flowApproval">Approve Transcript</span><i>→</i><span id="flowReport">Structured Report</span>
                 </div>
               </div>
 
@@ -161,14 +186,11 @@ Priority actions identified by the group were: extend opening hours on a trial b
 
           <aside class="side-column">
             <section class="panel compact-panel" aria-labelledby="quality-heading">
-              <div class="panel-header compact"><div><span class="step-kicker">Draft standard</span><h3 id="quality-heading">Report quality</h3></div><span class="score" id="qualityScore">0/4</span></div>
-              <ul class="quality-list">
-                <li data-check="clarity"><span>✓</span><div><strong>Clarity</strong><small>Purpose and context are clear</small></div></li>
-                <li data-check="evidence"><span>✓</span><div><strong>Evidence</strong><small>Findings reflect source notes</small></div></li>
-                <li data-check="recommendations"><span>✓</span><div><strong>Recommendations</strong><small>Priorities are actionable</small></div></li>
-                <li data-check="nextSteps"><span>✓</span><div><strong>Next steps</strong><small>Follow-up is defined</small></div></li>
+              <div class="panel-header compact"><div><span class="step-kicker">Smart validation</span><h3 id="quality-heading">Report health</h3></div><span class="score" id="qualityScore">0/0</span></div>
+              <ul class="quality-list" id="qualityList">
+                <li class="pending"><span>·</span><div><strong>Waiting for a draft</strong><small>Content checks will run automatically.</small></div></li>
               </ul>
-              <p class="quality-help">The checklist activates when a report draft is created.</p>
+              <p class="quality-help" id="qualityHelp">Checks update as section titles and content change.</p>
             </section>
 
             <section class="panel compact-panel settings-panel" aria-labelledby="branding-heading">
@@ -206,13 +228,22 @@ Priority actions identified by the group were: extend opening hours on a trial b
             <section class="panel compact-panel template-panel" aria-labelledby="template-heading">
               <div class="panel-header compact"><div><span class="step-kicker">Local library</span><h3 id="template-heading">Custom templates</h3></div></div>
               <div class="template-body">
-                <p>Save section structure and numbering in this browser.</p>
-                <div class="inline-control"><label class="sr-only" for="templateName">Template name</label><input id="templateName" type="text" placeholder="Template name" maxlength="60"><button id="saveTemplate" type="button" disabled>Save</button></div>
+                <p>Start from a built-in structure or save the current report configuration in this browser.</p>
+                <div class="built-in-library">
+                  <label class="field" for="builtinTemplates"><span>Built-in report templates</span><select id="builtinTemplates"><option>Consultation Report</option><option>Community Consultation Report</option><option>Workshop Summary</option><option>Submission Draft</option><option>Policy Brief</option><option>Executive Brief</option><option>Meeting Report</option><option>Community Engagement Report</option></select></label>
+                  <button id="applyBuiltinTemplate" class="button button-secondary button-small" type="button">Apply structure</button>
+                </div>
+                <div class="template-save-fields">
+                  <label class="field"><span>Template category</span><select id="templateCategory"><option>Consultation</option><option>Community Engagement</option><option>Policy</option><option>Workshop</option><option>Internal</option><option>Custom</option></select></label>
+                  <label class="field"><span>Description</span><textarea id="templateDescription" rows="3" maxlength="240" placeholder="When should this template be used?"></textarea></label>
+                </div>
+                <div class="inline-control"><label class="sr-only" for="templateName">Template name or new name</label><input id="templateName" type="text" placeholder="Template name or new name" maxlength="60"><button id="saveTemplate" type="button" disabled>Save</button></div>
                 <div class="template-library">
                   <label class="field" for="savedTemplates"><span>Saved templates</span><select id="savedTemplates"><option value="">No saved templates</option></select></label>
-                  <div class="template-actions"><button id="loadTemplate" class="button button-secondary button-small" type="button" disabled>Load template</button><button id="deleteTemplate" class="button button-quiet button-small" type="button" disabled>Delete</button></div>
+                  <div class="template-actions"><button id="loadTemplate" class="button button-secondary button-small" type="button" disabled>Load</button><button id="previewTemplate" class="button button-secondary button-small" type="button" disabled>Preview</button><button id="renameTemplate" class="button button-secondary button-small" type="button" disabled>Rename</button><button id="duplicateTemplate" class="button button-secondary button-small" type="button" disabled>Duplicate</button><button id="deleteTemplate" class="button button-quiet button-small" type="button" disabled>Delete</button></div>
                 </div>
-                <small class="local-note">Stored locally on this device. Consultation content is not saved.</small>
+                <div class="template-preview" id="templatePreview" hidden></div>
+                <small class="local-note">Stored locally on this device. Templates save structure and design settings, not consultation content.</small>
               </div>
             </section>
 
@@ -223,12 +254,24 @@ Priority actions identified by the group were: extend opening hours on a trial b
               <button id="pdfButton" class="export-option available" type="button" disabled><span class="export-file">PDF</span><span><strong>PDF</strong><small>Publication-ready sharing</small></span><b>Available now</b></button>
             </section>
           </aside>
-        </div>
 
-        <section class="report-area" id="reportArea" aria-labelledby="report-heading">
+          <section class="report-area" id="reportArea" aria-labelledby="report-heading">
           <div class="report-toolbar">
             <div><span class="eyebrow">Structured draft</span><h2 id="report-heading">Report preview</h2></div>
             <div class="report-toolbar-actions"><button id="copyButton" class="button button-secondary button-small" type="button" disabled>Copy full report</button><span class="draft-status" id="draftStatus"><i></i> Waiting for consultation input</span></div>
+          </div>
+
+          <div class="report-intelligence" id="reportIntelligence" hidden>
+            <section class="insight-card draft-summary-card" aria-labelledby="draft-summary-heading">
+              <div class="insight-card-header"><div><span class="step-kicker">Current draft</span><h3 id="draft-summary-heading">Draft Summary</h3></div><span class="live-badge">Live</span></div>
+              <div class="metric-grid summary-metrics">
+                <div><strong id="summarySections">0</strong><span>Sections</span></div><div><strong id="summaryWords">0</strong><span>Words</span></div><div><strong id="summaryRecommendations">0</strong><span>Recommendations</span></div><div><strong id="summaryActions">0</strong><span>Action items</span></div><div><strong id="summaryQuotes">0</strong><span>Direct quotes</span></div><div><strong id="summaryDate">—</strong><span>Generated</span></div>
+              </div>
+            </section>
+            <section class="insight-card consultation-insights-card" aria-labelledby="consultation-insights-heading">
+              <div class="insight-card-header"><div><span class="step-kicker">Local analysis</span><h3 id="consultation-insights-heading">Consultation Insights</h3></div></div>
+              <div class="insight-list"><div><span>Participants mentioned</span><strong id="insightParticipants">—</strong></div><div><span>Themes identified</span><strong id="insightThemes">0</strong></div><div><span>Recommendations</span><strong id="insightRecommendations">0</strong></div><div><span>Action items</span><strong id="insightActions">0</strong></div><div><span>Direct quotes</span><strong id="insightQuotes">0</strong></div></div>
+            </section>
           </div>
 
           <div class="empty-report" id="emptyReport">
@@ -258,7 +301,8 @@ Priority actions identified by the group were: extend opening hours on a trial b
             <p class="edit-note"><span aria-hidden="true">✎</span> Edit titles, numbering and content directly. Reorder or add sections to fit your reporting needs.</p>
             <div class="report-running-footer" id="reportFooterPreview" hidden></div>
           </article>
-        </section>
+          </section>
+        </div>
       </div>
     </section>
 
