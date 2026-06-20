@@ -34,6 +34,25 @@ const presets = {
   "Custom": ["Executive Summary", "New Section"]
 };
 
+const builtInTemplateMetadata = {
+  "Consultation Report": {
+    category: "Consultation",
+    description: "Use this template for structured community consultation reports, including findings, themes, recommendations, quotes, action items, and next steps."
+  },
+  "Workshop Summary": {
+    category: "Workshop",
+    description: "Use this template to summarise workshop activities, participant input, key insights, agreed actions, responsibilities, and follow-up."
+  },
+  "Policy Brief": {
+    category: "Policy",
+    description: "Use this template for concise policy-facing documents that explain an issue, present consultation evidence, outline options, and recommend actions."
+  },
+  "Committee Minutes": {
+    category: "Internal",
+    description: "Use this template to record committee meetings, attendance, apologies, agenda items, discussion points, decisions, actions, and the next meeting."
+  }
+};
+
 const state = {
   generated: false,
   generatedAt: "",
@@ -450,6 +469,13 @@ function readTemplates() {
 function writeTemplates(templates) {
   try { localStorage.setItem(templateStorageKey, JSON.stringify(templates)); return true; }
   catch { showToast("Local template storage is unavailable in this browser."); return false; }
+}
+
+function updateBuiltInTemplateMetadata() {
+  const metadata = builtInTemplateMetadata[$("#builtinTemplates").value];
+  if (!metadata) return;
+  $("#templateCategory").value = metadata.category;
+  $("#templateDescription").value = metadata.description;
 }
 
 function refreshTemplateLibrary(selectedId = "") {
@@ -1484,6 +1510,7 @@ Object.entries(layoutControlMap).forEach(([selector, key]) => {
 });
 
 $("#templateName").addEventListener("input", event => { saveTemplateButton.disabled = !state.generated || !clean(event.target.value); });
+$("#builtinTemplates").addEventListener("change", updateBuiltInTemplateMetadata);
 saveTemplateButton.addEventListener("click", saveTemplate);
 savedTemplates.addEventListener("change", () => { const enabled = Boolean(savedTemplates.value); ["#loadTemplate", "#previewTemplate", "#renameTemplate", "#duplicateTemplate", "#deleteTemplate"].forEach(selector => { $(selector).disabled = !enabled; }); $("#templatePreview").hidden = true; });
 $("#loadTemplate").addEventListener("click", loadTemplate);
@@ -1507,6 +1534,7 @@ $("#applyBuiltinTemplate").addEventListener("click", () => {
 });
 
 updateWordCount();
+updateBuiltInTemplateMetadata();
 refreshTemplateLibrary();
 applyBranding();
 restoreLayoutControls();
