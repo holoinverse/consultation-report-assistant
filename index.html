@@ -74,6 +74,15 @@
           <p>Complete the details below, add your notes, then create a structured first draft for professional review.</p>
         </div>
 
+        <section class="project-bar" aria-label="Project management">
+          <div class="project-bar-copy"><span class="project-icon" aria-hidden="true">▣</span><div><strong id="projectNameDisplay">Untitled local project</strong><small>Save or restore the complete workspace as a private JSON project file.</small></div></div>
+          <div class="project-actions">
+            <button class="button button-quiet button-small" id="newProjectButton" type="button">New Project</button>
+            <label class="button button-secondary button-small file-button" for="projectFileInput">Load Project<input id="projectFileInput" type="file" accept="application/json,.json"></label>
+            <button class="button button-primary button-small" id="saveProjectButton" type="button">Save Project</button>
+          </div>
+        </section>
+
         <div class="workspace-grid">
           <section class="panel input-panel" aria-labelledby="input-heading">
             <div class="panel-header">
@@ -99,7 +108,7 @@
 
               <div class="tabs" role="tablist" aria-label="Source format">
                 <button id="notesTab" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="notesPanel">Notes</button>
-                <button id="audioTab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="audioPanel">Audio <span>Coming soon</span></button>
+                <button id="audioTab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="audioPanel">Audio <span>Local workflow</span></button>
               </div>
 
               <div id="notesPanel" class="tab-panel" role="tabpanel" aria-labelledby="notesTab">
@@ -122,15 +131,24 @@ Priority actions identified by the group were: extend opening hours on a trial b
               </div>
 
               <div id="audioPanel" class="tab-panel" role="tabpanel" aria-labelledby="audioTab" hidden>
-                <div class="audio-placeholder">
-                  <span class="coming-badge">Coming soon</span>
+                <div class="audio-placeholder" id="audioDropArea">
+                  <span class="coming-badge">Local only</span>
                   <div class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 15v4h14v-4"/></svg></div>
-                  <h4>Audio consultation workflow</h4>
-                  <p>Audio transcription and AI-powered report generation will be available in a future release.</p>
-                  <button type="button" class="button button-disabled" disabled>Upload audio</button>
+                  <h4>Add consultation audio</h4>
+                  <p>Upload an audio recording for local playback and transcript preparation. Nothing leaves this browser.</p>
+                  <label class="button button-secondary audio-upload-button" for="audioUpload">Choose audio file<input id="audioUpload" type="file" accept="audio/*"></label>
                 </div>
-                <div class="future-flow" aria-label="Planned audio workflow">
-                  <span>Audio Upload</span><i>→</i><span>Transcription</span><i>→</i><span>Transcript Review</span><i>→</i><span>Structured Report</span>
+                <div class="audio-file-card" id="audioFileCard" hidden>
+                  <div class="audio-file-heading"><span class="audio-file-icon" aria-hidden="true">♪</span><div><strong id="audioFileName">Audio file</strong><small id="audioFileMeta"></small></div><button id="removeAudio" type="button" aria-label="Remove audio file">×</button></div>
+                  <audio id="audioPlayer" controls preload="metadata"></audio>
+                </div>
+                <div class="transcript-foundation">
+                  <div class="transcript-heading"><div><span class="step-kicker">Transcript review foundation</span><h4>Transcript workspace</h4></div><span class="foundation-badge">Manual input</span></div>
+                  <label class="field" for="transcriptText"><span>Transcript</span><textarea id="transcriptText" rows="8" placeholder="Paste or type a transcript here. Automatic transcription will be added in a future release."></textarea></label>
+                  <div class="transcript-actions"><small>Review and edit locally, then use the transcript as the source for report generation.</small><button class="button button-secondary button-small" id="useTranscript" type="button" disabled>Use transcript as notes</button></div>
+                </div>
+                <div class="future-flow" aria-label="Audio workflow">
+                  <span class="complete">Audio Upload</span><i>→</i><span>Transcript Review</span><i>→</i><span>Transcript Editing</span><i>→</i><span>Structured Report</span>
                 </div>
               </div>
 
@@ -170,6 +188,18 @@ Priority actions identified by the group were: extend opening hours on a trial b
                   <label class="switch-row"><span><strong>Watermark</strong><small>Display behind report content</small></span><input id="watermarkEnabled" type="checkbox" role="switch"><i aria-hidden="true"></i></label>
                   <label class="field" id="watermarkField" hidden><span>Watermark text</span><input id="watermarkText" type="text" value="DRAFT" maxlength="40"></label>
                 </div>
+                <div class="publication-settings">
+                  <div class="settings-subheading"><span class="step-kicker">Professional publishing</span><strong>Report features</strong></div>
+                  <label class="switch-row"><span><strong>Cover page</strong><small>Professional title page</small></span><input id="coverPageEnabled" type="checkbox" role="switch" checked><i aria-hidden="true"></i></label>
+                  <label class="switch-row"><span><strong>Table of contents</strong><small>Section overview</small></span><input id="tocEnabled" type="checkbox" role="switch"><i aria-hidden="true"></i></label>
+                  <label class="switch-row"><span><strong>Page numbering</strong><small>Show in exported footer</small></span><input id="pageNumbersEnabled" type="checkbox" role="switch" checked><i aria-hidden="true"></i></label>
+                  <label class="field"><span>Custom header</span><input id="headerText" type="text" placeholder="Optional header text" maxlength="120"></label>
+                  <div class="check-row"><label><input id="headerOrganization" type="checkbox" checked> Organization</label><label><input id="headerDate" type="checkbox"> Date</label></div>
+                  <label class="field"><span>Custom footer</span><input id="footerText" type="text" placeholder="Optional footer text" maxlength="120"></label>
+                  <div class="check-row"><label><input id="footerOrganization" type="checkbox"> Organization</label><label><input id="footerDate" type="checkbox" checked> Date</label></div>
+                  <label class="switch-row"><span><strong>Confidentiality statement</strong><small>Include in exports</small></span><input id="confidentialityEnabled" type="checkbox" role="switch"><i aria-hidden="true"></i></label>
+                  <label class="field" id="confidentialityField" hidden><span>Statement</span><input id="confidentialityText" type="text" value="Confidential — for authorised recipients only" maxlength="160"></label>
+                </div>
               </div>
             </section>
 
@@ -189,8 +219,8 @@ Priority actions identified by the group were: extend opening hours on a trial b
             <section class="panel compact-panel export-panel" aria-labelledby="export-heading">
               <div class="panel-header compact"><div><span class="step-kicker">Step 4 of 4</span><h3 id="export-heading">Export Format</h3></div></div>
               <button id="downloadButton" class="export-option available" type="button" disabled><span class="export-file">TXT</span><span><strong>Download text file</strong><small>Current edited structure</small></span><b>Available now</b></button>
-              <div class="export-option"><span class="export-file">DOCX</span><span><strong>DOCX / Word</strong><small>Editable branded report</small></span><b>Coming soon</b></div>
-              <div class="export-option"><span class="export-file">PDF</span><span><strong>PDF</strong><small>Publication-ready sharing</small></span><b>Coming soon</b></div>
+              <button id="docxButton" class="export-option available" type="button" disabled><span class="export-file">DOCX</span><span><strong>DOCX / Word</strong><small>Editable branded report</small></span><b>Available now</b></button>
+              <button id="pdfButton" class="export-option available" type="button" disabled><span class="export-file">PDF</span><span><strong>PDF</strong><small>Publication-ready sharing</small></span><b>Available now</b></button>
             </section>
           </aside>
         </div>
@@ -210,6 +240,7 @@ Priority actions identified by the group were: extend opening hours on a trial b
 
           <article class="report-document" id="reportDocument" hidden>
             <div class="report-watermark" id="reportWatermark" hidden aria-hidden="true">DRAFT</div>
+            <div class="report-running-header" id="reportHeaderPreview" hidden></div>
             <header class="report-cover">
               <img class="report-logo" id="reportLogo" alt="Organization logo" hidden>
               <div class="report-brandline"><span></span><b id="reportTypeLabel">Consultation Report</b></div>
@@ -218,12 +249,14 @@ Priority actions identified by the group were: extend opening hours on a trial b
               <dl class="report-meta" id="reportMeta"></dl>
             </header>
             <img class="report-feature-image" id="reportFeatureImage" alt="Report feature" hidden>
+            <nav class="report-toc" id="reportToc" aria-label="Table of contents" hidden></nav>
             <div class="section-workspace-bar">
               <label>Numbering <select id="numberingStyle"><option value="automatic">Automatic · 01, 02, 03</option><option value="manual">Manual numbering</option><option value="none">No numbering</option></select></label>
               <button id="addSection" class="button button-secondary button-small" type="button">+ Add custom section</button>
             </div>
             <div id="reportSections"></div>
             <p class="edit-note"><span aria-hidden="true">✎</span> Edit titles, numbering and content directly. Reorder or add sections to fit your reporting needs.</p>
+            <div class="report-running-footer" id="reportFooterPreview" hidden></div>
           </article>
         </section>
       </div>
@@ -234,8 +267,8 @@ Priority actions identified by the group were: extend opening hours on a trial b
         <div class="roadmap-intro"><div><span class="eyebrow">Future platform roadmap</span><h2>A clear path from drafting tool to consultation intelligence platform.</h2></div><p>Planned capabilities are shown for product direction only and are not included in this local prototype.</p></div>
         <div class="roadmap-grid">
           <article class="roadmap-card featured"><span class="phase">Phase 2</span><h3>Connected report generation</h3><ul><li>Gemini integration</li><li>OpenAI integration</li><li>AI-generated reports</li></ul></article>
-          <article class="roadmap-card"><span class="phase">Phase 3</span><h3>Professional publishing</h3><ul><li>DOCX export</li><li>PDF export</li></ul></article>
-          <article class="roadmap-card"><span class="phase">Phase 4</span><h3>Audio workflow</h3><ul><li>Audio upload</li><li>Audio transcription</li><li>Transcript review</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 3</span><h3>Advanced publishing</h3><ul><li>Institutional export templates</li><li>Batch report publishing</li></ul></article>
+          <article class="roadmap-card"><span class="phase">Phase 4</span><h3>Automated audio workflow</h3><ul><li>Audio transcription</li><li>Speaker identification</li><li>Timestamped transcript review</li></ul></article>
           <article class="roadmap-card"><span class="phase">Phase 5</span><h3>Consultation analysis</h3><ul><li>Multiple consultation analysis</li><li>Recurring theme detection</li></ul></article>
           <article class="roadmap-card"><span class="phase">Phase 6</span><h3>Insight dashboards</h3><ul><li>Dashboard</li><li>Analytics</li><li>Visualizations</li></ul></article>
           <article class="roadmap-card"><span class="phase">Phase 7</span><h3>Secure workspace</h3><ul><li>Login</li><li>Report history</li><li>Database</li></ul></article>

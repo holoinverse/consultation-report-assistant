@@ -13,6 +13,8 @@ const reportType = $("#reportType");
 const numberingStyle = $("#numberingStyle");
 const copyButton = $("#copyButton");
 const downloadButton = $("#downloadButton");
+const docxButton = $("#docxButton");
+const pdfButton = $("#pdfButton");
 const saveTemplateButton = $("#saveTemplate");
 const savedTemplates = $("#savedTemplates");
 const toast = $("#toast");
@@ -41,7 +43,30 @@ const state = {
     logo: "",
     image: "",
     watermarkEnabled: false,
-    watermarkText: "DRAFT"
+    watermarkText: "DRAFT",
+    logoName: "",
+    imageName: ""
+  },
+  layout: {
+    coverPage: true,
+    tableOfContents: false,
+    pageNumbers: true,
+    headerText: "",
+    headerOrganization: true,
+    headerDate: false,
+    footerText: "",
+    footerOrganization: false,
+    footerDate: true,
+    confidentialityEnabled: false,
+    confidentialityText: "Confidential — for authorised recipients only"
+  },
+  audio: {
+    name: "",
+    size: 0,
+    type: "",
+    duration: 0,
+    dataUrl: "",
+    transcript: ""
   }
 };
 
@@ -169,9 +194,20 @@ function renderSections() {
           <button class="section-control remove" type="button" data-action="remove" aria-label="Remove ${escapeHTML(section.title)}" title="Remove section">×</button>
         </div>
       </div>
+      <div class="rich-toolbar" role="toolbar" aria-label="Formatting for ${escapeHTML(section.title)}">
+        <button class="rich-tool" type="button" data-command="bold" aria-label="Bold" title="Bold">B</button>
+        <button class="rich-tool" type="button" data-command="italic" aria-label="Italic" title="Italic">I</button>
+        <button class="rich-tool" type="button" data-command="underline" aria-label="Underline" title="Underline">U</button>
+        <span class="rich-tool-separator" aria-hidden="true"></span>
+        <button class="rich-tool" type="button" data-command="insertUnorderedList" aria-label="Bullet list" title="Bullet list">• List</button>
+        <button class="rich-tool" type="button" data-command="insertOrderedList" aria-label="Numbered list" title="Numbered list">1. List</button>
+        <button class="rich-tool" type="button" data-command="formatBlock" data-value="blockquote" aria-label="Quote" title="Quote">“ ”</button>
+        <button class="rich-tool" type="button" data-command="formatBlock" data-value="h3" aria-label="Heading" title="Heading">H</button>
+      </div>
       <div class="editable-content" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Edit ${escapeHTML(section.title)} content" data-field="content">${section.content}</div>
     </section>`).join("");
   numberingStyle.value = state.numberingStyle;
+  if (state.generated) renderTableOfContents();
 }
 
 function renderHeader(data = getData()) {
@@ -205,14 +241,45 @@ function applyBranding() {
   $("#watermarkField").hidden = !state.branding.watermarkEnabled;
 }
 
+function reportHeaderText(data = getData()) {
+  return [state.layout.headerText, state.layout.headerOrganization ? data.organization : "", state.layout.headerDate ? formatDate(data.consultationDate) : ""].filter(Boolean).join(" · ");
+}
+
+function reportFooterText(data = getData()) {
+  return [state.layout.footerText, state.layout.footerOrganization ? data.organization : "", state.layout.footerDate ? formatDate(data.consultationDate) : "", state.layout.confidentialityEnabled ? state.layout.confidentialityText : ""].filter(Boolean).join(" · ");
+}
+
+function renderTableOfContents() {
+  const toc = $("#reportToc");
+  toc.hidden = !state.layout.tableOfContents || !state.generated;
+  toc.innerHTML = state.layout.tableOfContents ? `<h3>Table of Contents</h3><ol>${state.sections.map((section, index) => `<li><span>${escapeHTML(effectiveNumber(section, index))}</span>${escapeHTML(section.title)}</li>`).join("")}</ol>` : "";
+}
+
+function applyLayoutPreview() {
+  $(".report-cover").hidden = !state.layout.coverPage;
+  const header = $("#reportHeaderPreview");
+  const footer = $("#reportFooterPreview");
+  const headerText = reportHeaderText();
+  const footerText = reportFooterText();
+  header.textContent = headerText;
+  header.hidden = !headerText;
+  footer.innerHTML = `<span>${escapeHTML(footerText)}</span>${state.layout.pageNumbers ? "<span>Page 1</span>" : ""}`;
+  footer.hidden = !footerText && !state.layout.pageNumbers;
+  $("#confidentialityField").hidden = !state.layout.confidentialityEnabled;
+  renderTableOfContents();
+}
+
 function showGeneratedReport(data) {
   renderHeader(data);
   renderSections();
   applyBranding();
+  applyLayoutPreview();
   $("#emptyReport").hidden = true;
   reportDocument.hidden = false;
   copyButton.disabled = false;
   downloadButton.disabled = false;
+  docxButton.disabled = false;
+  pdfButton.disabled = false;
   saveTemplateButton.disabled = !clean($("#templateName").value);
   $("#draftStatus").classList.add("ready");
   $("#draftStatus").innerHTML = "<i></i> Draft ready for professional review";
@@ -342,6 +409,7 @@ function handleImageUpload(input, targetKey, fileNameSelector, removeSelector) {
   const reader = new FileReader();
   reader.onload = () => {
     state.branding[targetKey] = reader.result;
+    state.branding[`${targetKey}Name`] = file.name;
     $(fileNameSelector).textContent = file.name;
     $(removeSelector).hidden = false;
     applyBranding();
@@ -352,10 +420,554 @@ function handleImageUpload(input, targetKey, fileNameSelector, removeSelector) {
 
 function removeImageAsset(targetKey, inputSelector, fileNameSelector, removeSelector, defaultText) {
   state.branding[targetKey] = "";
+  state.branding[`${targetKey}Name`] = "";
   $(inputSelector).value = "";
   $(fileNameSelector).textContent = defaultText;
   $(removeSelector).hidden = true;
   applyBranding();
+}
+
+function safeFileName(value, fallback = "consultation-report") {
+  return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || fallback;
+}
+
+function downloadBlob(blob, fileName) {
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function serializeProject() {
+  state.audio.transcript = $("#transcriptText").value;
+  return {
+    format: "consultation-report-assistant-project",
+    version: 1,
+    savedAt: new Date().toISOString(),
+    consultation: getData(),
+    report: {
+      generated: state.generated,
+      reportType: state.reportType,
+      numberingStyle: state.numberingStyle,
+      sections: state.sections.map(section => ({ number: section.number, title: section.title, content: section.content }))
+    },
+    branding: { ...state.branding },
+    layout: { ...state.layout },
+    audio: { ...state.audio }
+  };
+}
+
+function saveProject() {
+  const project = serializeProject();
+  const name = safeFileName(project.consultation.title, "consultation-project");
+  downloadBlob(new Blob([JSON.stringify(project, null, 2)], { type: "application/json;charset=utf-8" }), `${name}.consultation-project.json`);
+  $("#projectNameDisplay").textContent = project.consultation.title || "Untitled local project";
+  showToast("Complete project saved as a local JSON file.");
+}
+
+function setControlValue(selector, value) {
+  const control = $(selector);
+  if (!control) return;
+  if (control.type === "checkbox") control.checked = Boolean(value);
+  else control.value = value ?? "";
+}
+
+function restoreBrandingControls() {
+  setControlValue("#fontFamily", state.branding.fontFamily);
+  [["#fontColor", state.branding.fontColor], ["#backgroundColor", state.branding.backgroundColor], ["#accentColor", state.branding.accentColor]].forEach(([selector, value]) => {
+    setControlValue(selector, value);
+    $(selector).nextElementSibling.value = String(value).toUpperCase();
+  });
+  setControlValue("#watermarkEnabled", state.branding.watermarkEnabled);
+  setControlValue("#watermarkText", state.branding.watermarkText);
+  $("#logoFileName").textContent = state.branding.logoName || "PNG, JPG or SVG · local only";
+  $("#imageFileName").textContent = state.branding.imageName || "Optional image block · local only";
+  $("#removeLogo").hidden = !state.branding.logo;
+  $("#removeImage").hidden = !state.branding.image;
+}
+
+function restoreLayoutControls() {
+  const mapping = {
+    coverPage: "#coverPageEnabled", tableOfContents: "#tocEnabled", pageNumbers: "#pageNumbersEnabled",
+    headerText: "#headerText", headerOrganization: "#headerOrganization", headerDate: "#headerDate",
+    footerText: "#footerText", footerOrganization: "#footerOrganization", footerDate: "#footerDate",
+    confidentialityEnabled: "#confidentialityEnabled", confidentialityText: "#confidentialityText"
+  };
+  Object.entries(mapping).forEach(([key, selector]) => setControlValue(selector, state.layout[key]));
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return "0 KB";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderAudioState() {
+  const hasAudio = Boolean(state.audio.dataUrl);
+  $("#audioFileCard").hidden = !hasAudio;
+  $("#audioFileName").textContent = state.audio.name || "Audio file";
+  $("#audioFileMeta").textContent = [formatFileSize(state.audio.size), state.audio.type || "Audio", state.audio.duration ? `${Math.round(state.audio.duration / 60)} min` : ""].filter(Boolean).join(" · ");
+  if (hasAudio && $("#audioPlayer").getAttribute("src") !== state.audio.dataUrl) $("#audioPlayer").src = state.audio.dataUrl;
+  else { $("#audioPlayer").removeAttribute("src"); $("#audioPlayer").load(); }
+  $("#transcriptText").value = state.audio.transcript || "";
+  $("#useTranscript").disabled = !clean(state.audio.transcript);
+}
+
+function loadAudioFile(file) {
+  if (!file || !file.type.startsWith("audio/")) { showToast("Choose a supported audio file."); return; }
+  if (file.size > 25 * 1024 * 1024) { showToast("Choose an audio file smaller than 25 MB for this local prototype."); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.audio = { ...state.audio, name: file.name, size: file.size, type: file.type, dataUrl: reader.result };
+    renderAudioState();
+    $("#audioPlayer").onloadedmetadata = () => {
+      state.audio.duration = Number.isFinite($("#audioPlayer").duration) ? $("#audioPlayer").duration : 0;
+      renderAudioState();
+    };
+    showToast("Audio added locally. It has not been uploaded anywhere.");
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeAudioFile() {
+  state.audio = { name: "", size: 0, type: "", duration: 0, dataUrl: "", transcript: state.audio.transcript || "" };
+  $("#audioUpload").value = "";
+  renderAudioState();
+  showToast("Audio removed. The transcript has been retained.");
+}
+
+function loadProjectFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const project = JSON.parse(reader.result);
+      if (project.format !== "consultation-report-assistant-project" || !project.consultation || !project.report) throw new Error("Invalid project");
+      Object.entries(project.consultation).forEach(([name, value]) => {
+        const control = form.elements.namedItem(name);
+        if (control) control.value = value ?? "";
+      });
+      state.generated = Boolean(project.report.generated);
+      state.reportType = project.report.reportType || project.consultation.reportType || "Consultation Report";
+      state.numberingStyle = project.report.numberingStyle || "automatic";
+      state.sections = (project.report.sections || []).map((section, index) => newSection(section.title || "Untitled Section", section.content || "<p></p>", section.number || String(index + 1).padStart(2, "0")));
+      state.loadedTemplate = null;
+      state.branding = { ...state.branding, ...(project.branding || {}) };
+      state.layout = { ...state.layout, ...(project.layout || {}) };
+      state.audio = { ...state.audio, ...(project.audio || {}) };
+      reportType.value = presets[state.reportType] ? state.reportType : "Custom";
+      numberingStyle.value = state.numberingStyle;
+      restoreBrandingControls();
+      restoreLayoutControls();
+      renderAudioState();
+      updateWordCount();
+      if (state.generated) showGeneratedReport(getData());
+      else {
+        $("#emptyReport").hidden = false;
+        reportDocument.hidden = true;
+        copyButton.disabled = true; downloadButton.disabled = true; docxButton.disabled = true; pdfButton.disabled = true;
+      }
+      $("#projectNameDisplay").textContent = project.consultation.title || file.name.replace(/\.json$/i, "");
+      showToast("Project loaded. The complete workspace has been restored.");
+    } catch {
+      showToast("This file is not a valid Consultation Report Assistant project.");
+    } finally {
+      $("#projectFileInput").value = "";
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetProfessionalState() {
+  state.branding = { fontFamily: "Georgia, serif", fontColor: "#40525e", backgroundColor: "#ffffff", accentColor: "#12706a", logo: "", image: "", watermarkEnabled: false, watermarkText: "DRAFT", logoName: "", imageName: "" };
+  state.layout = { coverPage: true, tableOfContents: false, pageNumbers: true, headerText: "", headerOrganization: true, headerDate: false, footerText: "", footerOrganization: false, footerDate: true, confidentialityEnabled: false, confidentialityText: "Confidential — for authorised recipients only" };
+  state.audio = { name: "", size: 0, type: "", duration: 0, dataUrl: "", transcript: "" };
+  restoreBrandingControls(); restoreLayoutControls(); renderAudioState(); applyBranding(); applyLayoutPreview();
+  $("#projectNameDisplay").textContent = "Untitled local project";
+}
+
+function xmlEscape(value) {
+  return String(value ?? "").replace(/[<>&'\"]/g, character => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[character]);
+}
+
+function richTextBlocks(html) {
+  const root = document.createElement("div");
+  root.innerHTML = html;
+  const inlineRuns = (node, inherited = {}) => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ? [{ text: node.textContent, ...inherited }] : [];
+    if (node.nodeType !== Node.ELEMENT_NODE) return [];
+    const tag = node.tagName.toLowerCase();
+    const style = { ...inherited };
+    if (tag === "strong" || tag === "b") style.bold = true;
+    if (tag === "em" || tag === "i") style.italic = true;
+    if (tag === "u") style.underline = true;
+    if (tag === "br") return [{ text: "\n", ...style }];
+    return [...node.childNodes].flatMap(child => inlineRuns(child, style));
+  };
+  const blocks = [];
+  const addElement = element => {
+    if (element.nodeType === Node.TEXT_NODE) {
+      if (clean(element.textContent)) blocks.push({ type: "p", runs: [{ text: element.textContent }] });
+      return;
+    }
+    if (element.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = element.tagName.toLowerCase();
+    if (tag === "ul" || tag === "ol") {
+      [...element.children].filter(child => child.tagName.toLowerCase() === "li").forEach(child => blocks.push({ type: tag === "ul" ? "bullet" : "number", runs: inlineRuns(child) }));
+    } else if (tag === "blockquote") blocks.push({ type: "quote", runs: inlineRuns(element, { italic: true }) });
+    else if (/^h[1-6]$/.test(tag)) blocks.push({ type: "heading", level: Number(tag[1]), runs: inlineRuns(element, { bold: true }) });
+    else if (tag === "p" || tag === "div") blocks.push({ type: "p", runs: inlineRuns(element) });
+    else blocks.push({ type: "p", runs: inlineRuns(element) });
+  };
+  [...root.childNodes].forEach(addElement);
+  return blocks.length ? blocks : [{ type: "p", runs: [{ text: "" }] }];
+}
+
+function base64Bytes(dataUrl) {
+  const encoded = String(dataUrl).split(",")[1] || "";
+  const binary = atob(encoded);
+  return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+
+function loadImage(dataUrl, mime = "image/png", background = null) {
+  return new Promise((resolve, reject) => {
+    if (!dataUrl) { resolve(null); return; }
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth || image.width;
+      canvas.height = image.naturalHeight || image.height;
+      const context = canvas.getContext("2d");
+      if (background) { context.fillStyle = background; context.fillRect(0, 0, canvas.width, canvas.height); }
+      context.drawImage(image, 0, 0);
+      const output = canvas.toDataURL(mime, .9);
+      resolve({ bytes: base64Bytes(output), width: canvas.width, height: canvas.height, dataUrl: output });
+    };
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+}
+
+const crcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let index = 0; index < 256; index++) {
+    let value = index;
+    for (let bit = 0; bit < 8; bit++) value = (value & 1) ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    table[index] = value >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function concatBytes(parts) {
+  const output = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  parts.forEach(part => { output.set(part, offset); offset += part.length; });
+  return output;
+}
+
+function zipArchive(files) {
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  files.forEach(file => {
+    const name = encoder.encode(file.name);
+    const data = typeof file.data === "string" ? encoder.encode(file.data) : file.data;
+    const crc = crc32(data);
+    const local = new Uint8Array(30 + name.length);
+    const localView = new DataView(local.buffer);
+    localView.setUint32(0, 0x04034b50, true); localView.setUint16(4, 20, true); localView.setUint16(6, 0, true); localView.setUint16(8, 0, true);
+    localView.setUint16(10, dosTime, true); localView.setUint16(12, dosDate, true); localView.setUint32(14, crc, true); localView.setUint32(18, data.length, true); localView.setUint32(22, data.length, true); localView.setUint16(26, name.length, true); localView.setUint16(28, 0, true); local.set(name, 30);
+    localParts.push(local, data);
+    const central = new Uint8Array(46 + name.length);
+    const centralView = new DataView(central.buffer);
+    centralView.setUint32(0, 0x02014b50, true); centralView.setUint16(4, 20, true); centralView.setUint16(6, 20, true); centralView.setUint16(8, 0, true); centralView.setUint16(10, 0, true);
+    centralView.setUint16(12, dosTime, true); centralView.setUint16(14, dosDate, true); centralView.setUint32(16, crc, true); centralView.setUint32(20, data.length, true); centralView.setUint32(24, data.length, true); centralView.setUint16(28, name.length, true); centralView.setUint16(30, 0, true); centralView.setUint16(32, 0, true); centralView.setUint16(34, 0, true); centralView.setUint16(36, 0, true); centralView.setUint32(38, 0, true); centralView.setUint32(42, offset, true); central.set(name, 46);
+    centralParts.push(central);
+    offset += local.length + data.length;
+  });
+  const central = concatBytes(centralParts);
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true); endView.setUint16(4, 0, true); endView.setUint16(6, 0, true); endView.setUint16(8, files.length, true); endView.setUint16(10, files.length, true); endView.setUint32(12, central.length, true); endView.setUint32(16, offset, true); endView.setUint16(20, 0, true);
+  return concatBytes([...localParts, central, end]);
+}
+
+function docxRun(run, options = {}) {
+  const properties = [run.bold || options.bold ? "<w:b/>" : "", run.italic ? "<w:i/>" : "", run.underline ? '<w:u w:val="single"/>' : "", options.color ? `<w:color w:val="${options.color}"/>` : "", options.size ? `<w:sz w:val="${options.size}"/>` : ""].join("");
+  const text = String(run.text || "").split("\n").map((part, index) => `${index ? "<w:br/>" : ""}<w:t xml:space="preserve">${xmlEscape(part)}</w:t>`).join("");
+  return `<w:r>${properties ? `<w:rPr>${properties}</w:rPr>` : ""}${text}</w:r>`;
+}
+
+function docxParagraph(runs, options = {}) {
+  const pPr = [options.style ? `<w:pStyle w:val="${options.style}"/>` : "", options.center ? '<w:jc w:val="center"/>' : "", options.numId ? `<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${options.numId}"/></w:numPr>` : "", options.pageBreakBefore ? '<w:pageBreakBefore/>' : ""].join("");
+  return `<w:p>${pPr ? `<w:pPr>${pPr}</w:pPr>` : ""}${runs.map(run => docxRun(run, options)).join("")}</w:p>`;
+}
+
+function docxDrawing(relId, name, width, height, maxWidthInches = 6.4) {
+  const ratio = width / Math.max(height, 1);
+  const displayWidth = Math.min(maxWidthInches, Math.max(1.5, width / 180));
+  const displayHeight = Math.min(4.6, displayWidth / ratio);
+  const cx = Math.round(displayWidth * 914400), cy = Math.round(displayHeight * 914400);
+  return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="1" name="${xmlEscape(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="${xmlEscape(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+}
+
+async function buildDocx() {
+  const data = getData();
+  const accent = state.branding.accentColor.replace("#", "").toUpperCase();
+  const color = state.branding.fontColor.replace("#", "").toUpperCase();
+  const background = state.branding.backgroundColor.replace("#", "").toUpperCase();
+  const wordFont = /Times/i.test(state.branding.fontFamily) ? "Times New Roman" : /Georgia/i.test(state.branding.fontFamily) ? "Georgia" : /Calibri/i.test(state.branding.fontFamily) ? "Calibri" : "Arial";
+  const logo = await loadImage(state.branding.logo, "image/png").catch(() => null);
+  const feature = await loadImage(state.branding.image, "image/png").catch(() => null);
+  const relationships = [
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>',
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>',
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>',
+    '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'
+  ];
+  if (logo) relationships.push('<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.png"/>');
+  if (feature) relationships.push(`<Relationship Id="rId${logo ? 6 : 5}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/report-image.png"/>`);
+  let body = "";
+  if (state.layout.coverPage) {
+    if (logo) body += docxDrawing("rId5", "Organization logo", logo.width, logo.height, 2.2);
+    body += docxParagraph([{ text: state.reportType }], { center: true, color: accent, size: 22, bold: true });
+    body += docxParagraph([{ text: data.title }], { center: true, color, size: 48, bold: true });
+    body += docxParagraph([{ text: [data.organization, data.location].filter(Boolean).join(" · ") }], { center: true, color, size: 22 });
+    [["Prepared for", data.preparedFor], ["Prepared by", data.preparedBy], ["Date", formatDate(data.consultationDate)], ["Consultation type", data.consultationType], ["Participants", data.participants]].forEach(([label, value]) => { body += docxParagraph([{ text: `${label}: `, bold: true }, { text: value || "Not specified" }], { center: true, color, size: 20 }); });
+    body += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  } else {
+    body += docxParagraph([{ text: data.title }], { style: "Title", color, bold: true });
+  }
+  if (feature) body += docxDrawing(`rId${logo ? 6 : 5}`, "Report image", feature.width, feature.height);
+  if (state.layout.tableOfContents) {
+    body += docxParagraph([{ text: "Table of Contents" }], { style: "Heading1", color: accent, bold: true });
+    state.sections.forEach((section, index) => { body += docxParagraph([{ text: `${effectiveNumber(section, index) ? `${effectiveNumber(section, index)} ` : ""}${section.title}` }], { color }); });
+    body += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  }
+  state.sections.forEach((section, index) => {
+    const number = effectiveNumber(section, index);
+    body += docxParagraph([{ text: `${number ? `${number} ` : ""}${section.title}` }], { style: "Heading1", color: accent, bold: true });
+    richTextBlocks(section.content).forEach(block => {
+      const options = { color, style: block.type === "heading" ? `Heading${Math.min(block.level || 2, 3)}` : block.type === "quote" ? "Quote" : "", numId: block.type === "bullet" ? 1 : block.type === "number" ? 2 : 0 };
+      body += docxParagraph(block.runs, options);
+    });
+  });
+  const sectionProperties = '<w:sectPr><w:headerReference w:type="default" r:id="rId3"/><w:footerReference w:type="default" r:id="rId4"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567"/></w:sectPr>';
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:background w:color="${background}"/><w:body>${body}${sectionProperties}</w:body></w:document>`;
+  const headerContent = [];
+  const headerText = reportHeaderText(data);
+  if (headerText) headerContent.push(docxParagraph([{ text: headerText }], { center: true, color, size: 16 }));
+  if (state.branding.watermarkEnabled) headerContent.push(docxParagraph([{ text: state.branding.watermarkText || "DRAFT" }], { center: true, color: "D9D9D9", size: 64, bold: true }));
+  const footerRuns = [{ text: reportFooterText(data) }];
+  const pageField = state.layout.pageNumbers ? '<w:r><w:t xml:space="preserve">  ·  Page </w:t></w:r><w:fldSimple w:instr="PAGE"><w:r><w:t>1</w:t></w:r></w:fldSimple>' : "";
+  const headerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${headerContent.join("")}</w:hdr>`;
+  const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr>${docxRun(footerRuns[0], { color, size: 16 })}${pageField}</w:p></w:ftr>`;
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="${wordFont}" w:hAnsi="${wordFont}"/><w:color w:val="${color}"/><w:sz w:val="22"/></w:rPr><w:pPr><w:spacing w:after="140" w:line="300" w:lineRule="auto"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="48"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:outlineLvl w:val="0"/><w:rPr><w:b/><w:color w:val="${accent}"/><w:sz w:val="34"/></w:rPr><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="160"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="28"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="560"/><w:shd w:fill="F4F1EA"/></w:pPr><w:rPr><w:i/></w:rPr></w:style></w:styles>`;
+  const numberingXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num><w:num w:numId="2"><w:abstractNumId w:val="2"/></w:num></w:numbering>';
+  const files = [
+    { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
+    { name: "_rels/.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>' },
+    { name: "word/document.xml", data: documentXml }, { name: "word/styles.xml", data: stylesXml }, { name: "word/numbering.xml", data: numberingXml }, { name: "word/header1.xml", data: headerXml }, { name: "word/footer1.xml", data: footerXml },
+    { name: "word/_rels/document.xml.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationships.join("")}</Relationships>` },
+    { name: "docProps/core.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEscape(data.title)}</dc:title><dc:creator>${xmlEscape(data.preparedBy || data.organization)}</dc:creator><dc:subject>${xmlEscape(state.reportType)}</dc:subject><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created></cp:coreProperties>` },
+    { name: "docProps/app.xml", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Consultation Report Assistant</Application></Properties>' }
+  ];
+  if (logo) files.push({ name: "word/media/logo.png", data: logo.bytes });
+  if (feature) files.push({ name: "word/media/report-image.png", data: feature.bytes });
+  return new Blob([zipArchive(files)], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+}
+
+function pdfSafeText(value) {
+  return String(value ?? "").normalize("NFKD").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/•/g, "-").replace(/[^\x20-\x7e]/g, "?").replace(/([\\()])/g, "\\$1");
+}
+
+function pdfBytes(value) {
+  return Uint8Array.from(String(value), character => character.charCodeAt(0) & 0xff);
+}
+
+class PdfDocumentBuilder {
+  constructor() { this.objects = [null]; }
+  reserve() { this.objects.push(null); return this.objects.length - 1; }
+  add(value) { this.objects.push(value); return this.objects.length - 1; }
+  set(id, value) { this.objects[id] = value; }
+  stream(content, dictionary = "") {
+    const bytes = typeof content === "string" ? pdfBytes(content) : content;
+    return concatBytes([pdfBytes(`<< /Length ${bytes.length}${dictionary ? ` ${dictionary}` : ""} >>\nstream\n`), bytes, pdfBytes("\nendstream")]);
+  }
+  build(rootId) {
+    const parts = [pdfBytes("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n")];
+    const offsets = [0];
+    let offset = parts[0].length;
+    for (let id = 1; id < this.objects.length; id++) {
+      offsets[id] = offset;
+      const objectData = typeof this.objects[id] === "string" ? pdfBytes(this.objects[id]) : this.objects[id];
+      const object = concatBytes([pdfBytes(`${id} 0 obj\n`), objectData, pdfBytes("\nendobj\n")]);
+      parts.push(object); offset += object.length;
+    }
+    const xrefOffset = offset;
+    let xref = `xref\n0 ${this.objects.length}\n0000000000 65535 f \n`;
+    for (let id = 1; id < this.objects.length; id++) xref += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+    xref += `trailer\n<< /Size ${this.objects.length} /Root ${rootId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    parts.push(pdfBytes(xref));
+    return concatBytes(parts);
+  }
+}
+
+function hexRgb(hex) {
+  const value = String(hex || "#000000").replace("#", "");
+  return [parseInt(value.slice(0, 2), 16) / 255, parseInt(value.slice(2, 4), 16) / 255, parseInt(value.slice(4, 6), 16) / 255].map(number => Number.isFinite(number) ? number : 0);
+}
+
+function pdfFontKey(style = {}) {
+  if (style.bold && style.italic) return "F4";
+  if (style.bold) return "F2";
+  if (style.italic) return "F3";
+  return "F1";
+}
+
+function estimatedTextWidth(text, size, style = {}) {
+  return String(text).length * size * (style.bold ? .56 : .51);
+}
+
+async function buildPdf() {
+  const data = getData();
+  const [red, green, blue] = hexRgb(state.branding.fontColor);
+  const [accentRed, accentGreen, accentBlue] = hexRgb(state.branding.accentColor);
+  const [backgroundRed, backgroundGreen, backgroundBlue] = hexRgb(state.branding.backgroundColor);
+  const logo = await loadImage(state.branding.logo, "image/jpeg", "#ffffff").catch(() => null);
+  const feature = await loadImage(state.branding.image, "image/jpeg", "#ffffff").catch(() => null);
+  const pdf = new PdfDocumentBuilder();
+  const catalogId = pdf.reserve(), pagesId = pdf.reserve();
+  const serif = /Georgia|Times/i.test(state.branding.fontFamily);
+  const fonts = serif ? ["Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic"] : ["Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"];
+  const fontIds = fonts.map(font => pdf.add(`<< /Type /Font /Subtype /Type1 /BaseFont /${font} /Encoding /WinAnsiEncoding >>`));
+  const imageResources = {};
+  if (logo) imageResources.ImLogo = pdf.add(pdf.stream(logo.bytes, `/Type /XObject /Subtype /Image /Width ${logo.width} /Height ${logo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`));
+  if (feature) imageResources.ImFeature = pdf.add(pdf.stream(feature.bytes, `/Type /XObject /Subtype /Image /Width ${feature.width} /Height ${feature.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`));
+  const pages = [];
+  const pageWidth = 595, pageHeight = 842, margin = 58, contentWidth = pageWidth - margin * 2;
+  let currentPage, y;
+  const newPage = isCover => {
+    currentPage = { commands: [], isCover };
+    currentPage.commands.push(`${backgroundRed.toFixed(3)} ${backgroundGreen.toFixed(3)} ${backgroundBlue.toFixed(3)} rg 0 0 ${pageWidth} ${pageHeight} re f`);
+    if (state.branding.watermarkEnabled) currentPage.commands.push(`q 0.90 0.90 0.90 rg 0.707 0.707 -0.707 0.707 120 365 cm BT /F2 52 Tf (${pdfSafeText(state.branding.watermarkText || "DRAFT")}) Tj ET Q`);
+    pages.push(currentPage);
+    y = isCover ? 755 : 782;
+  };
+  const ensureSpace = height => { if (y - height < 62) newPage(false); };
+  const drawLine = (runs, options = {}) => {
+    const size = options.size || 11;
+    const lineHeight = options.lineHeight || size * 1.45;
+    const indent = options.indent || 0;
+    const maxWidth = contentWidth - indent;
+    const tokens = [];
+    runs.forEach(run => String(run.text || "").replace(/\s+/g, " ").split(/(\s+)/).filter(Boolean).forEach(text => tokens.push({ text, bold: run.bold || options.bold, italic: run.italic || options.italic, underline: run.underline })));
+    const lines = [[]];
+    let width = 0;
+    tokens.forEach(token => {
+      const tokenWidth = estimatedTextWidth(token.text, size, token);
+      if (width + tokenWidth > maxWidth && lines[lines.length - 1].length && clean(token.text)) { lines.push([]); width = 0; }
+      lines[lines.length - 1].push(token); width += tokenWidth;
+    });
+    ensureSpace(lines.length * lineHeight + (options.after || 5));
+    lines.forEach((line, lineIndex) => {
+      let lineWidth = line.reduce((sum, token) => sum + estimatedTextWidth(token.text, size, token), 0);
+      let x = margin + indent;
+      if (options.center) x = (pageWidth - lineWidth) / 2;
+      if (options.right) x = pageWidth - margin - lineWidth;
+      const baseline = y - lineIndex * lineHeight;
+      line.forEach(token => {
+        const tokenWidth = estimatedTextWidth(token.text, size, token);
+        currentPage.commands.push(`BT /${pdfFontKey(token)} ${size} Tf ${options.accent ? `${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)}` : `${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)}`} rg 1 0 0 1 ${x.toFixed(2)} ${baseline.toFixed(2)} Tm (${pdfSafeText(token.text)}) Tj ET`);
+        if (token.underline && clean(token.text)) currentPage.commands.push(`${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} RG .6 w ${x.toFixed(2)} ${(baseline - 1.5).toFixed(2)} m ${(x + tokenWidth).toFixed(2)} ${(baseline - 1.5).toFixed(2)} l S`);
+        x += tokenWidth;
+      });
+    });
+    y -= lines.length * lineHeight + (options.after ?? 5);
+  };
+  const drawImage = (resource, asset, maxWidth, maxHeight) => {
+    if (!asset || !imageResources[resource]) return;
+    const ratio = asset.width / asset.height;
+    let width = maxWidth, height = width / ratio;
+    if (height > maxHeight) { height = maxHeight; width = height * ratio; }
+    ensureSpace(height + 15);
+    const x = (pageWidth - width) / 2;
+    currentPage.commands.push(`q ${width.toFixed(2)} 0 0 ${height.toFixed(2)} ${x.toFixed(2)} ${(y - height).toFixed(2)} cm /${resource} Do Q`);
+    y -= height + 15;
+  };
+  const drawBlocks = blocks => {
+    let orderedIndex = 0;
+    blocks.forEach(block => {
+      if (block.type !== "number") orderedIndex = 0;
+      let runs = block.runs;
+      const options = {};
+      if (block.type === "bullet") { runs = [{ text: "- ", bold: true }, ...runs]; options.indent = 16; }
+      if (block.type === "number") { orderedIndex += 1; runs = [{ text: `${orderedIndex}. `, bold: true }, ...runs]; options.indent = 16; }
+      if (block.type === "quote") { options.indent = 20; options.italic = true; currentPage.commands.push(`${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)} RG 2 w ${margin + 7} ${y + 4} m ${margin + 7} ${y - 27} l S`); }
+      if (block.type === "heading") { options.size = block.level <= 2 ? 15 : 13; options.bold = true; options.after = 7; }
+      drawLine(runs, options);
+    });
+  };
+  newPage(Boolean(state.layout.coverPage));
+  if (state.layout.coverPage) {
+    drawImage("ImLogo", logo, 150, 70);
+    y -= 22;
+    drawLine([{ text: state.reportType, bold: true }], { center: true, size: 11, accent: true, after: 18 });
+    drawLine([{ text: data.title, bold: true }], { center: true, size: 27, after: 12 });
+    drawLine([{ text: [data.organization, data.location].filter(Boolean).join(" · ") }], { center: true, size: 12, after: 30 });
+    [["Prepared for", data.preparedFor], ["Prepared by", data.preparedBy], ["Date", formatDate(data.consultationDate)], ["Consultation type", data.consultationType], ["Participants", data.participants]].forEach(([label, value]) => drawLine([{ text: `${label}: `, bold: true }, { text: value || "Not specified" }], { center: true, size: 10, after: 4 }));
+    drawImage("ImFeature", feature, 400, 180);
+    newPage(false);
+  } else {
+    drawLine([{ text: data.title, bold: true }], { size: 25, accent: true, after: 14 });
+    drawImage("ImFeature", feature, contentWidth, 200);
+  }
+  if (state.layout.tableOfContents) {
+    drawLine([{ text: "Table of Contents", bold: true }], { size: 20, accent: true, after: 15 });
+    state.sections.forEach((section, index) => drawLine([{ text: `${effectiveNumber(section, index) ? `${effectiveNumber(section, index)}  ` : ""}${section.title}` }], { size: 11, after: 4 }));
+    newPage(false);
+  }
+  state.sections.forEach((section, index) => {
+    ensureSpace(55);
+    const number = effectiveNumber(section, index);
+    drawLine([{ text: `${number ? `${number}  ` : ""}${section.title}`, bold: true }], { size: 18, accent: true, after: 12 });
+    drawBlocks(richTextBlocks(section.content));
+    y -= 12;
+  });
+  const headerText = reportHeaderText(data), footerText = reportFooterText(data);
+  pages.forEach((page, index) => {
+    const decorations = [];
+    if (headerText && !page.isCover) decorations.push(`BT /F1 8 Tf ${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} rg 1 0 0 1 ${margin} 814 Tm (${pdfSafeText(headerText)}) Tj ET ${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)} RG .7 w ${margin} 805 m ${pageWidth - margin} 805 l S`);
+    if (footerText || state.layout.pageNumbers) {
+      const pageLabel = state.layout.pageNumbers ? `Page ${index + 1} of ${pages.length}` : "";
+      decorations.push(`${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)} RG .7 w ${margin} 39 m ${pageWidth - margin} 39 l S BT /F1 7 Tf ${red.toFixed(3)} ${green.toFixed(3)} ${blue.toFixed(3)} rg 1 0 0 1 ${margin} 25 Tm (${pdfSafeText(footerText)}) Tj ET BT /F1 7 Tf 1 0 0 1 ${pageWidth - margin - estimatedTextWidth(pageLabel, 7)} 25 Tm (${pdfSafeText(pageLabel)}) Tj ET`);
+    }
+    page.commands.push(...decorations);
+  });
+  const pageIds = [];
+  const xObjects = Object.entries(imageResources).map(([name, id]) => `/${name} ${id} 0 R`).join(" ");
+  pages.forEach(page => {
+    const contentId = pdf.add(pdf.stream(page.commands.join("\n")));
+    const pageId = pdf.add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontIds[0]} 0 R /F2 ${fontIds[1]} 0 R /F3 ${fontIds[2]} 0 R /F4 ${fontIds[3]} 0 R >>${xObjects ? ` /XObject << ${xObjects} >>` : ""} >> /Contents ${contentId} 0 R >>`);
+    pageIds.push(pageId);
+  });
+  pdf.set(pagesId, `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`);
+  pdf.set(catalogId, `<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+  return new Blob([pdf.build(catalogId)], { type: "application/pdf" });
 }
 
 form.addEventListener("submit", event => {
@@ -378,9 +990,25 @@ reportSections.addEventListener("input", event => {
   if (!sectionElement) return;
   const section = state.sections.find(item => item.id === sectionElement.dataset.sectionId);
   if (!section) return;
-  if (event.target.dataset.field === "title") section.title = event.target.value;
+  if (event.target.dataset.field === "title") { section.title = event.target.value; renderTableOfContents(); }
   if (event.target.dataset.field === "number") section.number = event.target.value;
   if (event.target.dataset.field === "content") section.content = event.target.innerHTML;
+});
+
+reportSections.addEventListener("mousedown", event => {
+  if (event.target.closest(".rich-tool")) event.preventDefault();
+});
+
+reportSections.addEventListener("click", event => {
+  const tool = event.target.closest(".rich-tool");
+  if (!tool) return;
+  const sectionElement = tool.closest("[data-section-id]");
+  const editor = sectionElement?.querySelector("[data-field='content']");
+  const section = state.sections.find(item => item.id === sectionElement?.dataset.sectionId);
+  if (!editor || !section) return;
+  editor.focus();
+  document.execCommand(tool.dataset.command, false, tool.dataset.value || null);
+  section.content = editor.innerHTML;
 });
 
 reportSections.addEventListener("click", event => {
@@ -430,7 +1058,7 @@ reportType.addEventListener("change", () => {
 });
 
 form.addEventListener("input", event => {
-  if (state.generated && event.target !== notes && event.target !== reportType) renderHeader();
+  if (state.generated && event.target !== notes && event.target !== reportType) { renderHeader(); applyLayoutPreview(); }
 });
 
 copyButton.addEventListener("click", async () => {
@@ -447,12 +1075,35 @@ copyButton.addEventListener("click", async () => {
 
 downloadButton.addEventListener("click", () => {
   const data = getData();
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([reportAsText()], { type: "text/plain;charset=utf-8" }));
-  link.download = `${(data.title || "consultation-report").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.txt`;
-  document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
+  downloadBlob(new Blob([reportAsText()], { type: "text/plain;charset=utf-8" }), `${safeFileName(data.title)}.txt`);
   setProgress("export");
   showToast("TXT report downloaded with the current section structure.");
+});
+
+docxButton.addEventListener("click", async () => {
+  docxButton.disabled = true;
+  showToast("Building editable Word report…");
+  try {
+    downloadBlob(await buildDocx(), `${safeFileName(getData().title)}.docx`);
+    setProgress("export");
+    showToast("DOCX report created with current content and branding.");
+  } catch (error) {
+    console.error("DOCX export failed", error);
+    showToast("DOCX export could not be completed. Check uploaded image formats and try again.");
+  } finally { docxButton.disabled = !state.generated; }
+});
+
+pdfButton.addEventListener("click", async () => {
+  pdfButton.disabled = true;
+  showToast("Building publication-ready PDF…");
+  try {
+    downloadBlob(await buildPdf(), `${safeFileName(getData().title)}.pdf`);
+    setProgress("export");
+    showToast("PDF report created from the current workspace.");
+  } catch (error) {
+    console.error("PDF export failed", error);
+    showToast("PDF export could not be completed. Check uploaded image formats and try again.");
+  } finally { pdfButton.disabled = !state.generated; }
 });
 
 $("#clearButton").addEventListener("click", () => {
@@ -463,15 +1114,34 @@ $("#clearButton").addEventListener("click", () => {
   numberingStyle.value = "automatic";
   selectTab("notes"); updateWordCount();
   $("#emptyReport").hidden = false; reportDocument.hidden = true; reportSections.innerHTML = "";
-  copyButton.disabled = true; downloadButton.disabled = true; saveTemplateButton.disabled = true;
+  copyButton.disabled = true; downloadButton.disabled = true; docxButton.disabled = true; pdfButton.disabled = true; saveTemplateButton.disabled = true;
   $("#draftStatus").classList.remove("ready"); $("#draftStatus").innerHTML = "<i></i> Waiting for consultation input";
   $$(".quality-list li").forEach(item => item.classList.remove("checked")); $("#qualityScore").textContent = "0/4";
   setProgress("input"); $("#title").focus(); showToast("Form cleared. Saved templates remain available.");
 });
 
+$("#saveProjectButton").addEventListener("click", saveProject);
+$("#projectFileInput").addEventListener("change", event => loadProjectFile(event.target.files?.[0]));
+$("#newProjectButton").addEventListener("click", () => {
+  if (!window.confirm("Start a new project? Save the current project first if you want to keep it.")) return;
+  $("#clearButton").click();
+  resetProfessionalState();
+  showToast("New local project ready.");
+});
+
 $("#notesTab").addEventListener("click", () => selectTab("notes"));
 $("#audioTab").addEventListener("click", () => selectTab("audio"));
 notes.addEventListener("input", updateWordCount);
+$("#audioUpload").addEventListener("change", event => loadAudioFile(event.target.files?.[0]));
+$("#removeAudio").addEventListener("click", removeAudioFile);
+$("#transcriptText").addEventListener("input", event => { state.audio.transcript = event.target.value; $("#useTranscript").disabled = !clean(event.target.value); });
+$("#useTranscript").addEventListener("click", () => {
+  notes.value = state.audio.transcript;
+  updateWordCount();
+  selectTab("notes");
+  notes.focus();
+  showToast("Transcript copied into consultation notes and ready for report generation.");
+});
 
 $("#fontFamily").addEventListener("change", event => { state.branding.fontFamily = event.target.value; applyBranding(); });
 [["#fontColor", "fontColor"], ["#backgroundColor", "backgroundColor"], ["#accentColor", "accentColor"]].forEach(([selector, key]) => {
@@ -484,6 +1154,16 @@ $("#imageUpload").addEventListener("change", event => handleImageUpload(event.ta
 $("#removeLogo").addEventListener("click", () => removeImageAsset("logo", "#logoUpload", "#logoFileName", "#removeLogo", "PNG, JPG or SVG · local only"));
 $("#removeImage").addEventListener("click", () => removeImageAsset("image", "#imageUpload", "#imageFileName", "#removeImage", "Optional image block · local only"));
 
+const layoutControlMap = {
+  "#coverPageEnabled": "coverPage", "#tocEnabled": "tableOfContents", "#pageNumbersEnabled": "pageNumbers",
+  "#headerText": "headerText", "#headerOrganization": "headerOrganization", "#headerDate": "headerDate",
+  "#footerText": "footerText", "#footerOrganization": "footerOrganization", "#footerDate": "footerDate",
+  "#confidentialityEnabled": "confidentialityEnabled", "#confidentialityText": "confidentialityText"
+};
+Object.entries(layoutControlMap).forEach(([selector, key]) => {
+  $(selector).addEventListener("input", event => { state.layout[key] = event.target.type === "checkbox" ? event.target.checked : event.target.value; applyLayoutPreview(); });
+});
+
 $("#templateName").addEventListener("input", event => { saveTemplateButton.disabled = !state.generated || !clean(event.target.value); });
 saveTemplateButton.addEventListener("click", saveTemplate);
 savedTemplates.addEventListener("change", () => { const enabled = Boolean(savedTemplates.value); $("#loadTemplate").disabled = !enabled; $("#deleteTemplate").disabled = !enabled; });
@@ -493,3 +1173,6 @@ $("#deleteTemplate").addEventListener("click", removeTemplate);
 updateWordCount();
 refreshTemplateLibrary();
 applyBranding();
+restoreLayoutControls();
+renderAudioState();
+applyLayoutPreview();
