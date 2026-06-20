@@ -327,6 +327,7 @@ button.export-option:disabled { opacity: .55; cursor: not-allowed; }
 .section-workspace-bar label { display: flex; align-items: center; gap: 8px; color: #536a75; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
 .section-workspace-bar select { min-height: 32px; border: 1px solid #c8d6d9; border-radius: 6px; color: #324b58; background: #fff; padding: 0 8px; font-size: 10px; text-transform: none; letter-spacing: 0; }
 .report-section { position: relative; z-index: 1; padding: 29px 58px 31px; border-bottom: 1px solid #e7ecee; }
+#reportSections .report-section:nth-last-child(2) { border-bottom: 0; }
 .section-editor-head { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .section-number-input, .section-title-input { min-width: 0; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--report-color); transition: .2s; }
 .section-number-input:hover, .section-title-input:hover, .section-number-input:focus, .section-title-input:focus { border-color: #c9d9dc; background: rgba(255,255,255,.75); outline: 0; }
