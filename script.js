@@ -1024,7 +1024,7 @@ async function buildDocx() {
 }
 
 function pdfSafeText(value) {
-  return String(value ?? "").normalize("NFKD").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/•/g, "-").replace(/\s*·\s*/g, ", ").replace(/[^\x20-\x7e]/g, "?").replace(/([\\()])/g, "\\$1");
+  return String(value ?? "").normalize("NFKD").replace(/[“❝]/g, "\u0001").replace(/[”❞]/g, "\u0002").replace(/[‘’]/g, "'").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/•/g, "-").replace(/\s*·\s*/g, ", ").replace(/[^\x20-\x7e\u0001\u0002]/g, "?").replace(/([\\()])/g, "\\$1").replace(/\u0001/g, "\\223").replace(/\u0002/g, "\\224");
 }
 
 function pdfBytes(value) {
@@ -1165,7 +1165,19 @@ async function buildPdf() {
       const options = {};
       if (block.type === "bullet") { runs = [{ text: "- ", bold: true }, ...runs]; options.indent = 16; }
       if (block.type === "number") { orderedIndex += 1; runs = [{ text: `${orderedIndex}. `, bold: true }, ...runs]; options.indent = 16; }
-      if (block.type === "quote") { options.indent = 20; options.italic = true; currentPage.commands.push(`${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)} RG 2 w ${margin + 7} ${y + 4} m ${margin + 7} ${y - 27} l S`); }
+      if (block.type === "quote") {
+        runs = runs.map(run => ({ ...run }));
+        let firstRun = runs.findIndex(run => clean(run.text));
+        if (firstRun < 0) runs = [{ text: "“”" }];
+        else {
+          if (/^\s*["“❝]/.test(runs[firstRun].text)) runs[firstRun].text = runs[firstRun].text.replace(/^(\s*)["“❝]/, "$1“");
+          else runs.unshift({ text: "“" });
+          const lastRun = runs.map(run => clean(run.text)).lastIndexOf(runs.map(run => clean(run.text)).filter(Boolean).at(-1));
+          if (/["”❞]\s*$/.test(runs[lastRun].text)) runs[lastRun].text = runs[lastRun].text.replace(/["”❞](\s*)$/, "”$1");
+          else runs.push({ text: "”" });
+        }
+        options.indent = 20; options.italic = true; options.after = 14;
+      }
       if (block.type === "heading") { options.size = block.level <= 2 ? 15 : 13; options.bold = true; options.after = 7; }
       drawLine(runs, options);
       previousBlockType = block.type;
