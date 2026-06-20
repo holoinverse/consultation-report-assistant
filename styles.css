@@ -357,6 +357,7 @@ button.export-option:disabled { opacity: .55; cursor: not-allowed; }
 .editable-content ul, .editable-content ol { margin: 0; padding-left: 20px; }
 .editable-content li { margin-bottom: 7px; padding-left: 4px; }
 .editable-content blockquote { margin: 0 0 10px; padding: 8px 14px; color: #38565a; border-left: 2px solid var(--gold); background: #faf8f3; font-style: italic; }
+.editable-content blockquote:last-child { margin-bottom: 24px; }
 .edit-note { margin: 0; padding: 15px 58px; color: #687983; background: #f4f8f7; font-size: 9px; }
 .edit-note span { color: var(--teal); margin-right: 6px; }
 
