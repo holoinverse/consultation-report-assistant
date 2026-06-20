@@ -203,7 +203,7 @@ function effectiveNumber(section, index) {
 
 function renderSections() {
   reportSections.innerHTML = state.sections.map((section, index) => `
-    <section class="report-section" data-section-id="${section.id}">
+    <section id="report-${section.id}" class="report-section" data-section-id="${section.id}">
       <div class="section-editor-head">
         <label class="sr-only" for="number-${section.id}">Section number</label>
         <input id="number-${section.id}" class="section-number-input ${state.numberingStyle === "none" ? "number-hidden" : ""}" data-field="number" value="${escapeHTML(effectiveNumber(section, index))}" ${state.numberingStyle !== "manual" ? "disabled" : ""} maxlength="12">
@@ -273,7 +273,7 @@ function reportFooterText(data = getData()) {
 function renderTableOfContents() {
   const toc = $("#reportToc");
   toc.hidden = !state.layout.tableOfContents || !state.generated;
-  toc.innerHTML = state.layout.tableOfContents ? `<h3>Table of Contents</h3><ol>${state.sections.map((section, index) => `<li><span>${escapeHTML(effectiveNumber(section, index))}</span>${escapeHTML(section.title)}</li>`).join("")}</ol>` : "";
+  toc.innerHTML = state.layout.tableOfContents ? `<h3>Table of Contents</h3><ol>${state.sections.map((section, index) => `<li><a href="#report-${section.id}"><span>${escapeHTML(effectiveNumber(section, index))}</span>${escapeHTML(section.title)}</a></li>`).join("")}</ol>` : "";
 }
 
 function applyLayoutPreview() {
@@ -397,10 +397,21 @@ function updateReportIntelligence() {
   $("#qualityHelp").textContent = passed === checks.length ? "All current report health checks pass." : "Review highlighted items before publication.";
 }
 
+const defaultSectionPlaceholder = "Add evidence, analysis or professional commentary for this section.";
+
+function isMeaningfulExportSection(section) {
+  const text = clean(htmlToText(section.content)).replace(/\s+/g, " ");
+  return Boolean(text) && text.toLocaleLowerCase() !== defaultSectionPlaceholder.toLocaleLowerCase();
+}
+
+function exportableSections() {
+  return state.sections.filter(isMeaningfulExportSection);
+}
+
 function reportAsText() {
   const data = getData();
   const lines = [data.title.toUpperCase(), `${state.reportType.toUpperCase()} · ${data.organization}${data.location ? ` · ${data.location}` : ""}`, "", `Prepared For: ${data.preparedFor || "Not specified"}`, `Prepared By: ${data.preparedBy || "Not specified"}`, `Organization: ${data.organization || "Not specified"}`, `Date: ${formatDate(data.consultationDate)}`, `Consultation Type: ${data.consultationType || "Not specified"}`, `Participants: ${data.participants || "Not specified"}`, "", "─".repeat(64)];
-  state.sections.forEach((section, index) => {
+  exportableSections().forEach((section, index) => {
     const number = effectiveNumber(section, index);
     lines.push("", `${number ? `${number} ` : ""}${section.title}`.toUpperCase(), "", htmlToText(section.content));
   });
@@ -915,6 +926,14 @@ function docxParagraph(runs, options = {}) {
   return `<w:p>${pPr ? `<w:pPr>${pPr}</w:pPr>` : ""}${runs.map(run => docxRun(run, options)).join("")}</w:p>`;
 }
 
+function docxTocLink(text, anchor, color) {
+  return `<w:p><w:hyperlink w:anchor="${anchor}" w:history="1"><w:r><w:rPr><w:color w:val="${color}"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:hyperlink></w:p>`;
+}
+
+function docxBookmarkedHeading(text, anchor, bookmarkId, color) {
+  return `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:bookmarkStart w:id="${bookmarkId}" w:name="${anchor}"/>${docxRun({ text, bold: true }, { color })}<w:bookmarkEnd w:id="${bookmarkId}"/></w:p>`;
+}
+
 function docxDrawing(relId, name, width, height, maxWidthInches = 6.4) {
   const ratio = width / Math.max(height, 1);
   const displayWidth = Math.min(maxWidthInches, Math.max(1.5, width / 180));
@@ -925,6 +944,7 @@ function docxDrawing(relId, name, width, height, maxWidthInches = 6.4) {
 
 async function buildDocx() {
   const data = getData();
+  const sections = exportableSections();
   const accent = state.branding.accentColor.replace("#", "").toUpperCase();
   const color = state.branding.fontColor.replace("#", "").toUpperCase();
   const background = state.branding.backgroundColor.replace("#", "").toUpperCase();
@@ -940,6 +960,8 @@ async function buildDocx() {
   if (logo) relationships.push('<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.png"/>');
   if (feature) relationships.push(`<Relationship Id="rId${logo ? 6 : 5}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/report-image.png"/>`);
   let body = "";
+  let nextOrderedNumId = 2;
+  const orderedNumIds = [];
   if (state.layout.coverPage) {
     if (logo) body += docxDrawing("rId5", "Organization logo", logo.width, logo.height, 2.2);
     body += docxParagraph([{ text: state.reportType }], { center: true, color: accent, size: 22, bold: true });
@@ -953,15 +975,25 @@ async function buildDocx() {
   if (feature) body += docxDrawing(`rId${logo ? 6 : 5}`, "Report image", feature.width, feature.height);
   if (state.layout.tableOfContents) {
     body += docxParagraph([{ text: "Table of Contents" }], { style: "Heading1", color: accent, bold: true });
-    state.sections.forEach((section, index) => { body += docxParagraph([{ text: `${effectiveNumber(section, index) ? `${effectiveNumber(section, index)} ` : ""}${section.title}` }], { color }); });
+    sections.forEach((section, index) => {
+      const number = effectiveNumber(section, index);
+      body += docxTocLink(`${number ? `${number} ` : ""}${section.title}`, `section_${index + 1}`, color);
+    });
     body += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
   }
-  state.sections.forEach((section, index) => {
+  sections.forEach((section, index) => {
     const number = effectiveNumber(section, index);
-    body += docxParagraph([{ text: `${number ? `${number} ` : ""}${section.title}` }], { style: "Heading1", color: accent, bold: true });
+    body += docxBookmarkedHeading(`${number ? `${number} ` : ""}${section.title}`, `section_${index + 1}`, index + 1, accent);
+    let activeOrderedNumId = 0;
+    let previousBlockType = "";
     richTextBlocks(section.content).forEach(block => {
-      const options = { color, style: block.type === "heading" ? `Heading${Math.min(block.level || 2, 3)}` : block.type === "quote" ? "Quote" : "", numId: block.type === "bullet" ? 1 : block.type === "number" ? 2 : 0 };
+      if (block.type === "number" && previousBlockType !== "number") {
+        activeOrderedNumId = nextOrderedNumId++;
+        orderedNumIds.push(activeOrderedNumId);
+      }
+      const options = { color, style: block.type === "heading" ? `Heading${Math.min(block.level || 2, 3)}` : block.type === "quote" ? "Quote" : "", numId: block.type === "bullet" ? 1 : block.type === "number" ? activeOrderedNumId : 0 };
       body += docxParagraph(block.runs, options);
+      previousBlockType = block.type;
     });
   });
   const sectionProperties = '<w:sectPr><w:headerReference w:type="default" r:id="rId3"/><w:footerReference w:type="default" r:id="rId4"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567"/></w:sectPr>';
@@ -975,7 +1007,7 @@ async function buildDocx() {
   const headerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${headerContent.join("")}</w:hdr>`;
   const footerXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr>${docxRun(footerRuns[0], { color, size: 16 })}${pageField}</w:p></w:ftr>`;
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="${wordFont}" w:hAnsi="${wordFont}"/><w:color w:val="${color}"/><w:sz w:val="22"/></w:rPr><w:pPr><w:spacing w:after="140" w:line="300" w:lineRule="auto"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="48"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:outlineLvl w:val="0"/><w:rPr><w:b/><w:color w:val="${accent}"/><w:sz w:val="34"/></w:rPr><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="160"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="28"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading3"><w:name w:val="heading 3"/><w:basedOn w:val="Normal"/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:pPr><w:ind w:left="560"/><w:shd w:fill="F4F1EA"/></w:pPr><w:rPr><w:i/></w:rPr></w:style></w:styles>`;
-  const numberingXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num><w:num w:numId="2"><w:abstractNumId w:val="2"/></w:num></w:numbering>';
+  const numberingXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>${orderedNumIds.map(numId => `<w:num w:numId="${numId}"><w:abstractNumId w:val="2"/></w:num>`).join("")}</w:numbering>`;
   const files = [
     { name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>` },
     { name: "_rels/.rels", data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>' },
@@ -1038,11 +1070,19 @@ function pdfFontKey(style = {}) {
 }
 
 function estimatedTextWidth(text, size, style = {}) {
-  return String(text).length * size * (style.bold ? .56 : .51);
+  const width = [...String(text)].reduce((sum, character) => {
+    if (/\s/.test(character)) return sum + size * .25;
+    if (/[.,;:'"`!|ilI]/.test(character)) return sum + size * .27;
+    if (/[MW@#%]/.test(character)) return sum + size * .78;
+    if (/[A-Z0-9]/.test(character)) return sum + size * .55;
+    return sum + size * .47;
+  }, 0);
+  return width * (style.bold ? 1.04 : 1);
 }
 
 async function buildPdf() {
   const data = getData();
+  const sections = exportableSections();
   const [red, green, blue] = hexRgb(state.branding.fontColor);
   const [accentRed, accentGreen, accentBlue] = hexRgb(state.branding.accentColor);
   const [backgroundRed, backgroundGreen, backgroundBlue] = hexRgb(state.branding.backgroundColor);
@@ -1057,10 +1097,11 @@ async function buildPdf() {
   if (logo) imageResources.ImLogo = pdf.add(pdf.stream(logo.bytes, `/Type /XObject /Subtype /Image /Width ${logo.width} /Height ${logo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`));
   if (feature) imageResources.ImFeature = pdf.add(pdf.stream(feature.bytes, `/Type /XObject /Subtype /Image /Width ${feature.width} /Height ${feature.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`));
   const pages = [];
+  const sectionTargets = new Map();
   const pageWidth = 595, pageHeight = 842, margin = 58, contentWidth = pageWidth - margin * 2;
   let currentPage, y;
   const newPage = isCover => {
-    currentPage = { commands: [], isCover };
+    currentPage = { commands: [], links: [], isCover };
     currentPage.commands.push(`${backgroundRed.toFixed(3)} ${backgroundGreen.toFixed(3)} ${backgroundBlue.toFixed(3)} rg 0 0 ${pageWidth} ${pageHeight} re f`);
     if (state.branding.watermarkEnabled) currentPage.commands.push(`q 0.90 0.90 0.90 rg 0.707 0.707 -0.707 0.707 120 365 cm BT /F2 52 Tf (${pdfSafeText(state.branding.watermarkText || "DRAFT")}) Tj ET Q`);
     pages.push(currentPage);
@@ -1082,6 +1123,7 @@ async function buildPdf() {
       lines[lines.length - 1].push(token); width += tokenWidth;
     });
     ensureSpace(lines.length * lineHeight + (options.after || 5));
+    const bounds = { pageIndex: pages.length - 1, x: margin + indent, top: y + 4, bottom: y - lines.length * lineHeight, width: maxWidth };
     lines.forEach((line, lineIndex) => {
       let lineWidth = line.reduce((sum, token) => sum + estimatedTextWidth(token.text, size, token), 0);
       let x = margin + indent;
@@ -1096,6 +1138,7 @@ async function buildPdf() {
       });
     });
     y -= lines.length * lineHeight + (options.after ?? 5);
+    return bounds;
   };
   const drawImage = (resource, asset, maxWidth, maxHeight) => {
     if (!asset || !imageResources[resource]) return;
@@ -1109,8 +1152,9 @@ async function buildPdf() {
   };
   const drawBlocks = blocks => {
     let orderedIndex = 0;
+    let previousBlockType = "";
     blocks.forEach(block => {
-      if (block.type !== "number") orderedIndex = 0;
+      if (block.type === "number" && previousBlockType !== "number") orderedIndex = 0;
       let runs = block.runs;
       const options = {};
       if (block.type === "bullet") { runs = [{ text: "- ", bold: true }, ...runs]; options.indent = 16; }
@@ -1118,6 +1162,7 @@ async function buildPdf() {
       if (block.type === "quote") { options.indent = 20; options.italic = true; currentPage.commands.push(`${accentRed.toFixed(3)} ${accentGreen.toFixed(3)} ${accentBlue.toFixed(3)} RG 2 w ${margin + 7} ${y + 4} m ${margin + 7} ${y - 27} l S`); }
       if (block.type === "heading") { options.size = block.level <= 2 ? 15 : 13; options.bold = true; options.after = 7; }
       drawLine(runs, options);
+      previousBlockType = block.type;
     });
   };
   newPage(Boolean(state.layout.coverPage));
@@ -1136,11 +1181,16 @@ async function buildPdf() {
   }
   if (state.layout.tableOfContents) {
     drawLine([{ text: "Table of Contents", bold: true }], { size: 20, accent: true, after: 15 });
-    state.sections.forEach((section, index) => drawLine([{ text: `${effectiveNumber(section, index) ? `${effectiveNumber(section, index)}  ` : ""}${section.title}` }], { size: 11, after: 4 }));
+    sections.forEach((section, index) => {
+      const number = effectiveNumber(section, index);
+      const bounds = drawLine([{ text: `${number ? `${number}  ` : ""}${section.title}` }], { size: 11, after: 4 });
+      pages[bounds.pageIndex].links.push({ ...bounds, sectionIndex: index });
+    });
     newPage(false);
   }
-  state.sections.forEach((section, index) => {
+  sections.forEach((section, index) => {
     ensureSpace(55);
+    sectionTargets.set(index, { pageIndex: pages.length - 1, y: Math.min(pageHeight - 40, y + 12) });
     const number = effectiveNumber(section, index);
     drawLine([{ text: `${number ? `${number}  ` : ""}${section.title}`, bold: true }], { size: 18, accent: true, after: 12 });
     drawBlocks(richTextBlocks(section.content));
@@ -1156,12 +1206,16 @@ async function buildPdf() {
     }
     page.commands.push(...decorations);
   });
-  const pageIds = [];
+  const pageIds = pages.map(() => pdf.reserve());
   const xObjects = Object.entries(imageResources).map(([name, id]) => `/${name} ${id} 0 R`).join(" ");
-  pages.forEach(page => {
+  pages.forEach((page, index) => {
     const contentId = pdf.add(pdf.stream(page.commands.join("\n")));
-    const pageId = pdf.add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontIds[0]} 0 R /F2 ${fontIds[1]} 0 R /F3 ${fontIds[2]} 0 R /F4 ${fontIds[3]} 0 R >>${xObjects ? ` /XObject << ${xObjects} >>` : ""} >> /Contents ${contentId} 0 R >>`);
-    pageIds.push(pageId);
+    const annotationIds = page.links.flatMap(link => {
+      const target = sectionTargets.get(link.sectionIndex);
+      if (!target) return [];
+      return [pdf.add(`<< /Type /Annot /Subtype /Link /Rect [${link.x.toFixed(2)} ${link.bottom.toFixed(2)} ${(link.x + link.width).toFixed(2)} ${link.top.toFixed(2)}] /Border [0 0 0] /Dest [${pageIds[target.pageIndex]} 0 R /XYZ null ${target.y.toFixed(2)} null] >>`)];
+    });
+    pdf.set(pageIds[index], `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontIds[0]} 0 R /F2 ${fontIds[1]} 0 R /F3 ${fontIds[2]} 0 R /F4 ${fontIds[3]} 0 R >>${xObjects ? ` /XObject << ${xObjects} >>` : ""} >> /Contents ${contentId} 0 R${annotationIds.length ? ` /Annots [${annotationIds.map(id => `${id} 0 R`).join(" ")}]` : ""} >>`);
   });
   pdf.set(pagesId, `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`);
   pdf.set(catalogId, `<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
