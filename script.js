@@ -3,7 +3,10 @@
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const templateStorageKey = "consultation-report-assistant.templates.v1";
+const organisationTemplateStorageKey = "consultation-report-assistant.organisation-templates.v1";
 let sectionSequence = 0;
+let organisationReviewState = { templateId: "", source: null, sections: [] };
+let showingArchivedOrganisationTemplates = false;
 
 const form = $("#consultationForm");
 const notes = $("#notes");
@@ -60,6 +63,7 @@ const state = {
   numberingStyle: "automatic",
   sections: [],
   loadedTemplate: null,
+  organisationTemplate: null,
   branding: {
     fontFamily: "Georgia, serif",
     fontColor: "#40525e",
@@ -202,16 +206,17 @@ function createBaseContent(data) {
   };
 }
 
-function newSection(title, content, number) {
-  return { id: `section-${Date.now()}-${++sectionSequence}`, number: String(number), title, content };
+function newSection(title, content, number, metadata = {}) {
+  return { id: `section-${Date.now()}-${++sectionSequence}`, number: String(number), title, content, ...metadata };
 }
 
 function structureForGeneration(data, contentMap) {
-  const structure = state.loadedTemplate?.sections || presets[data.reportType] || presets.Custom;
+  const structure = state.organisationTemplate?.sections || state.loadedTemplate?.sections || presets[data.reportType] || presets.Custom;
   return structure.map((item, index) => {
     const title = typeof item === "string" ? item : item.title;
-    const number = typeof item === "string" ? String(index + 1).padStart(2, "0") : item.number;
-    return newSection(title, contentMap[title] || "<p>Add evidence, analysis or professional commentary for this section.</p>", number);
+    const number = typeof item === "string" ? String(index + 1).padStart(2, "0") : (item.number || String(index + 1).padStart(2, "0"));
+    const metadata = typeof item === "string" ? {} : { headingLevel: item.headingLevel || item.level || 1, organisationSectionId: item.id || "" };
+    return newSection(title, contentMap[title] || "<p>Add evidence, analysis or professional commentary for this section.</p>", number, metadata);
   });
 }
 
@@ -519,6 +524,7 @@ function loadTemplate() {
   const template = readTemplates().find(item => item.id === savedTemplates.value);
   if (!template) return;
   state.loadedTemplate = template;
+  state.organisationTemplate = null;
   state.reportType = template.reportType;
   state.numberingStyle = template.numberingStyle;
   if (template.branding) state.branding = { ...state.branding, ...template.branding };
@@ -585,6 +591,234 @@ function removeTemplate() {
   refreshTemplateLibrary();
   $("#templatePreview").hidden = true;
   showToast(`“${template.name}” removed from this browser.`);
+}
+
+function organisationId(prefix = "organisation-template") {
+  const suffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${prefix}-${suffix}`;
+}
+
+function readOrganisationTemplates() {
+  try {
+    const templates = JSON.parse(localStorage.getItem(organisationTemplateStorageKey) || "[]");
+    return Array.isArray(templates) ? templates : [];
+  } catch { return []; }
+}
+
+function writeOrganisationTemplates(templates) {
+  try {
+    localStorage.setItem(organisationTemplateStorageKey, JSON.stringify(templates));
+    return true;
+  } catch {
+    showToast("Organisation template storage is unavailable in this browser.");
+    return false;
+  }
+}
+
+function selectedOrganisationTemplate() {
+  return readOrganisationTemplates().find(template => template.id === $("#organisationTemplates").value);
+}
+
+function updateOrganisationTemplateActions() {
+  const template = selectedOrganisationTemplate();
+  const selected = Boolean(template);
+  $("#applyOrganisationTemplate").disabled = !selected || template?.status === "archived";
+  ["#editOrganisationTemplate", "#renameOrganisationTemplate", "#duplicateOrganisationTemplate", "#deleteOrganisationTemplate"].forEach(selector => { $(selector).disabled = !selected; });
+  $("#archiveOrganisationTemplate").disabled = !selected;
+  $("#archiveOrganisationTemplate").textContent = template?.status === "archived" ? "Restore" : "Archive";
+}
+
+function refreshOrganisationTemplateLibrary(selectedId = "") {
+  const allTemplates = readOrganisationTemplates();
+  const templates = showingArchivedOrganisationTemplates ? allTemplates : allTemplates.filter(template => template.status !== "archived");
+  const select = $("#organisationTemplates");
+  select.innerHTML = templates.length
+    ? `<option value="">Select an organisation template</option>${templates.map(template => `<option value="${escapeHTML(template.id)}">${escapeHTML(template.name)}${template.status === "archived" ? " (Archived)" : ""}</option>`).join("")}`
+    : `<option value="">${showingArchivedOrganisationTemplates ? "No organisation templates" : "No active organisation templates"}</option>`;
+  select.value = templates.some(template => template.id === selectedId) ? selectedId : "";
+  $("#toggleArchivedOrganisationTemplates").textContent = showingArchivedOrganisationTemplates ? "Hide archived" : "Show archived";
+  updateOrganisationTemplateActions();
+}
+
+function renderOrganisationReviewSections() {
+  const list = $("#organisationSectionList");
+  const sections = organisationReviewState.sections;
+  list.innerHTML = sections.map((section, index) => `
+    <div class="organisation-section-row" data-organisation-section-id="${escapeHTML(section.id)}">
+      <label class="sr-only" for="organisation-level-${escapeHTML(section.id)}">Heading level</label>
+      <select id="organisation-level-${escapeHTML(section.id)}" data-organisation-field="level" aria-label="Heading level for ${escapeHTML(section.title || `section ${index + 1}`)}">
+        ${Array.from({ length: 9 }, (_, levelIndex) => `<option value="${levelIndex + 1}" ${Number(section.level) === levelIndex + 1 ? "selected" : ""}>Heading ${levelIndex + 1}</option>`).join("")}
+      </select>
+      <label class="sr-only" for="organisation-title-${escapeHTML(section.id)}">Section title</label>
+      <input id="organisation-title-${escapeHTML(section.id)}" data-organisation-field="title" value="${escapeHTML(section.title)}" maxlength="120" placeholder="Section title">
+      <div class="organisation-row-controls" aria-label="Section controls">
+        <button type="button" data-organisation-action="up" aria-label="Move section up" ${index === 0 ? "disabled" : ""}>↑</button>
+        <button type="button" data-organisation-action="down" aria-label="Move section down" ${index === sections.length - 1 ? "disabled" : ""}>↓</button>
+        <button type="button" class="remove" data-organisation-action="remove" aria-label="Remove section">×</button>
+      </div>
+    </div>`).join("");
+  $("#organisationEmptyState").hidden = sections.length > 0;
+}
+
+function openOrganisationTemplateReview({ template = null, imported = null } = {}) {
+  const source = imported?.source || template?.source || { format: "manual", importedAt: new Date().toISOString() };
+  const inputSections = imported?.sections || template?.sections || [];
+  organisationReviewState = {
+    templateId: template?.id || "",
+    source: { ...source },
+    sections: inputSections.map((section, index) => ({
+      id: section.id || organisationId("organisation-section"),
+      title: section.title || "",
+      level: Number(section.level || section.headingLevel) || 1,
+      order: index,
+      sourceStyleId: section.sourceStyleId || "",
+      sourceStyleName: section.sourceStyleName || ""
+    }))
+  };
+  $("#organisationTemplateName").value = template?.name || imported?.suggestedName || "";
+  const count = organisationReviewState.sections.length;
+  const fileName = source.fileName ? ` from ${source.fileName}` : "";
+  const warnings = imported?.warnings?.length ? ` ${imported.warnings.join(" ")}` : "";
+  $("#organisationImportSummary").textContent = count
+    ? `${count} heading${count === 1 ? "" : "s"} detected${fileName}. Review the structure before saving.${warnings}`
+    : `No headings were detected${fileName}. Add the approved sections manually before saving.${warnings}`;
+  renderOrganisationReviewSections();
+  const dialog = $("#organisationTemplateDialog");
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+  $("#organisationTemplateName").focus();
+}
+
+function closeOrganisationTemplateReview() {
+  const dialog = $("#organisationTemplateDialog");
+  if (typeof dialog.close === "function") dialog.close();
+  else dialog.removeAttribute("open");
+  organisationReviewState = { templateId: "", source: null, sections: [] };
+}
+
+function saveOrganisationTemplateReview() {
+  const name = clean($("#organisationTemplateName").value);
+  const sections = organisationReviewState.sections
+    .map((section, index) => ({ ...section, title: clean(section.title), level: Math.min(9, Math.max(1, Number(section.level) || 1)), order: index }))
+    .filter(section => section.title);
+  if (!name) { $("#organisationTemplateName").focus(); showToast("Enter an organisation template name."); return; }
+  if (!sections.length) { showToast("Add at least one section before saving."); return; }
+  const templates = readOrganisationTemplates();
+  const duplicate = templates.find(template => template.id !== organisationReviewState.templateId && template.name.toLowerCase() === name.toLowerCase());
+  if (duplicate) { showToast("An organisation template with this name already exists."); return; }
+  const existing = templates.find(template => template.id === organisationReviewState.templateId);
+  const now = new Date().toISOString();
+  const template = {
+    schemaVersion: 1,
+    id: existing?.id || organisationId(),
+    kind: "organisation",
+    name,
+    status: existing?.status || "active",
+    source: organisationReviewState.source || existing?.source || { format: "manual", importedAt: now },
+    sections,
+    capabilities: { structure: true, branding: false, headers: false, footers: false, disclaimers: false, ...(existing?.capabilities || {}) },
+    extensions: existing?.extensions || {},
+    createdAt: existing?.createdAt || now,
+    updatedAt: now
+  };
+  const updated = existing ? templates.map(item => item.id === existing.id ? template : item) : [...templates, template];
+  if (!writeOrganisationTemplates(updated)) return;
+  closeOrganisationTemplateReview();
+  refreshOrganisationTemplateLibrary(template.id);
+  showToast(existing ? "Organisation template updated." : "Organisation template saved locally.");
+}
+
+async function importOrganisationTemplate(file) {
+  if (!file) return;
+  try {
+    showToast("Analysing the DOCX structure locally…");
+    const importer = globalThis.TemplateImporters?.docx;
+    if (!importer) throw new Error("The DOCX importer is unavailable.");
+    const imported = await importer.analyze(file);
+    openOrganisationTemplateReview({ imported });
+  } catch (error) {
+    showToast(error?.message || "The DOCX structure could not be read.");
+  } finally {
+    $("#organisationTemplateFile").value = "";
+  }
+}
+
+function applyOrganisationTemplate() {
+  const template = selectedOrganisationTemplate();
+  if (!template || template.status === "archived") return;
+  state.organisationTemplate = JSON.parse(JSON.stringify(template));
+  state.loadedTemplate = null;
+  state.reportType = "Custom";
+  reportType.value = "Custom";
+  if (state.generated) {
+    const existingContent = Object.fromEntries(state.sections.map(section => [section.title, section.content]));
+    state.sections = template.sections.map((item, index) => newSection(
+      item.title,
+      existingContent[item.title] || "<p>Add evidence, analysis or professional commentary for this section.</p>",
+      String(index + 1).padStart(2, "0"),
+      { headingLevel: item.level || 1, organisationSectionId: item.id || "" }
+    ));
+    renderHeader();
+    renderSections();
+  }
+  showToast(`“${template.name}” applied. ${state.generated ? "Report structure updated." : "Generate a draft to use it."}`);
+}
+
+function editOrganisationTemplate() {
+  const template = selectedOrganisationTemplate();
+  if (template) openOrganisationTemplateReview({ template });
+}
+
+function renameOrganisationTemplate() {
+  const template = selectedOrganisationTemplate();
+  if (!template) return;
+  const name = clean(window.prompt("Rename organisation template", template.name));
+  if (!name || name === template.name) return;
+  const templates = readOrganisationTemplates();
+  if (templates.some(item => item.id !== template.id && item.name.toLowerCase() === name.toLowerCase())) { showToast("An organisation template with this name already exists."); return; }
+  template.name = name;
+  template.updatedAt = new Date().toISOString();
+  if (!writeOrganisationTemplates(templates.map(item => item.id === template.id ? template : item))) return;
+  refreshOrganisationTemplateLibrary(template.id);
+  showToast("Organisation template renamed.");
+}
+
+function duplicateOrganisationTemplate() {
+  const template = selectedOrganisationTemplate();
+  if (!template) return;
+  const now = new Date().toISOString();
+  const copy = JSON.parse(JSON.stringify(template));
+  copy.id = organisationId();
+  copy.name = `${template.name} Copy`;
+  copy.status = "active";
+  copy.createdAt = now;
+  copy.updatedAt = now;
+  copy.sections = copy.sections.map((section, index) => ({ ...section, id: organisationId("organisation-section"), order: index }));
+  if (!writeOrganisationTemplates([...readOrganisationTemplates(), copy])) return;
+  if (showingArchivedOrganisationTemplates) showingArchivedOrganisationTemplates = false;
+  refreshOrganisationTemplateLibrary(copy.id);
+  showToast("Organisation template duplicated locally.");
+}
+
+function archiveOrganisationTemplate() {
+  const template = selectedOrganisationTemplate();
+  if (!template) return;
+  template.status = template.status === "archived" ? "active" : "archived";
+  template.updatedAt = new Date().toISOString();
+  const templates = readOrganisationTemplates().map(item => item.id === template.id ? template : item);
+  if (!writeOrganisationTemplates(templates)) return;
+  const restored = template.status === "active";
+  refreshOrganisationTemplateLibrary(restored || showingArchivedOrganisationTemplates ? template.id : "");
+  showToast(restored ? "Organisation template restored." : "Organisation template archived. It can be restored later.");
+}
+
+function deleteOrganisationTemplate() {
+  const template = selectedOrganisationTemplate();
+  if (!template || !window.confirm(`Delete “${template.name}”? This cannot be undone.`)) return;
+  if (!writeOrganisationTemplates(readOrganisationTemplates().filter(item => item.id !== template.id))) return;
+  if (state.organisationTemplate?.id === template.id) state.organisationTemplate = null;
+  refreshOrganisationTemplateLibrary();
+  showToast("Organisation template deleted from this browser.");
 }
 
 function handleImageUpload(input, targetKey, fileNameSelector, removeSelector) {
@@ -789,6 +1023,7 @@ function loadProjectFile(file) {
       state.numberingStyle = project.report.numberingStyle || "automatic";
       state.sections = (project.report.sections || []).map((section, index) => newSection(section.title || "Untitled Section", section.content || "<p></p>", section.number || String(index + 1).padStart(2, "0")));
       state.loadedTemplate = null;
+      state.organisationTemplate = null;
       state.branding = { ...state.branding, ...(project.branding || {}) };
       state.layout = { ...state.layout, ...(project.layout || {}) };
       state.audio = { ...state.audio, ...(project.audio || {}) };
@@ -1348,6 +1583,7 @@ numberingStyle.addEventListener("change", () => {
 reportType.addEventListener("change", () => {
   state.reportType = reportType.value;
   state.loadedTemplate = null;
+  state.organisationTemplate = null;
   if (state.generated) {
     const data = getData();
     state.sections = structureForGeneration(data, createBaseContent(data));
@@ -1410,7 +1646,7 @@ $("#clearButton").addEventListener("click", () => {
   form.reset();
   [...form.elements].forEach(element => { if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") element.value = ""; });
   reportType.value = "Consultation Report";
-  state.generated = false; state.generatedAt = ""; state.reportType = "Consultation Report"; state.numberingStyle = "automatic"; state.sections = []; state.loadedTemplate = null;
+  state.generated = false; state.generatedAt = ""; state.reportType = "Consultation Report"; state.numberingStyle = "automatic"; state.sections = []; state.loadedTemplate = null; state.organisationTemplate = null;
   numberingStyle.value = "automatic";
   selectTab("notes"); updateWordCount();
   $("#emptyReport").hidden = false; reportDocument.hidden = true; reportSections.innerHTML = "";
@@ -1482,6 +1718,7 @@ $("#generateFromTranscript").addEventListener("click", () => {
   reportType.value = state.audio.reportTemplate;
   state.reportType = state.audio.reportTemplate;
   state.loadedTemplate = null;
+  state.organisationTemplate = null;
   updateWordCount();
   selectTab("notes");
   form.requestSubmit();
@@ -1518,11 +1755,61 @@ $("#previewTemplate").addEventListener("click", previewTemplate);
 $("#renameTemplate").addEventListener("click", renameTemplate);
 $("#duplicateTemplate").addEventListener("click", duplicateTemplate);
 $("#deleteTemplate").addEventListener("click", removeTemplate);
+$("#organisationTemplates").addEventListener("change", updateOrganisationTemplateActions);
+$("#organisationTemplateFile").addEventListener("change", event => importOrganisationTemplate(event.target.files?.[0]));
+$("#applyOrganisationTemplate").addEventListener("click", applyOrganisationTemplate);
+$("#editOrganisationTemplate").addEventListener("click", editOrganisationTemplate);
+$("#renameOrganisationTemplate").addEventListener("click", renameOrganisationTemplate);
+$("#duplicateOrganisationTemplate").addEventListener("click", duplicateOrganisationTemplate);
+$("#archiveOrganisationTemplate").addEventListener("click", archiveOrganisationTemplate);
+$("#deleteOrganisationTemplate").addEventListener("click", deleteOrganisationTemplate);
+$("#toggleArchivedOrganisationTemplates").addEventListener("click", () => {
+  showingArchivedOrganisationTemplates = !showingArchivedOrganisationTemplates;
+  refreshOrganisationTemplateLibrary();
+});
+$("#closeOrganisationDialog").addEventListener("click", closeOrganisationTemplateReview);
+$("#cancelOrganisationTemplate").addEventListener("click", closeOrganisationTemplateReview);
+$("#saveOrganisationTemplate").addEventListener("click", saveOrganisationTemplateReview);
+$("#addOrganisationSection").addEventListener("click", () => {
+  organisationReviewState.sections.push({ id: organisationId("organisation-section"), title: "New Section", level: 1, order: organisationReviewState.sections.length, sourceStyleId: "", sourceStyleName: "" });
+  renderOrganisationReviewSections();
+  const input = $$("#organisationSectionList [data-organisation-field='title']").at(-1);
+  input?.focus();
+  input?.select();
+});
+$("#organisationSectionList").addEventListener("input", event => {
+  const row = event.target.closest("[data-organisation-section-id]");
+  const field = event.target.dataset.organisationField;
+  const section = organisationReviewState.sections.find(item => item.id === row?.dataset.organisationSectionId);
+  if (!section || !field) return;
+  section[field] = field === "level" ? Number(event.target.value) : event.target.value;
+});
+$("#organisationSectionList").addEventListener("change", event => {
+  const row = event.target.closest("[data-organisation-section-id]");
+  const section = organisationReviewState.sections.find(item => item.id === row?.dataset.organisationSectionId);
+  if (section && event.target.dataset.organisationField === "level") section.level = Number(event.target.value);
+});
+$("#organisationSectionList").addEventListener("click", event => {
+  const button = event.target.closest("[data-organisation-action]");
+  const row = event.target.closest("[data-organisation-section-id]");
+  if (!button || !row) return;
+  const index = organisationReviewState.sections.findIndex(item => item.id === row.dataset.organisationSectionId);
+  if (index < 0) return;
+  if (button.dataset.organisationAction === "remove") organisationReviewState.sections.splice(index, 1);
+  else {
+    const destination = button.dataset.organisationAction === "up" ? index - 1 : index + 1;
+    if (destination < 0 || destination >= organisationReviewState.sections.length) return;
+    [organisationReviewState.sections[index], organisationReviewState.sections[destination]] = [organisationReviewState.sections[destination], organisationReviewState.sections[index]];
+  }
+  organisationReviewState.sections.forEach((section, order) => { section.order = order; });
+  renderOrganisationReviewSections();
+});
 $("#applyBuiltinTemplate").addEventListener("click", () => {
   const selectedTemplate = $("#builtinTemplates").value;
   reportType.value = selectedTemplate;
   state.reportType = selectedTemplate;
   state.loadedTemplate = null;
+  state.organisationTemplate = null;
   if (state.generated) {
     const existingContent = Object.fromEntries(state.sections.map(section => [section.title, section.content]));
     const baseContent = createBaseContent(getData());
@@ -1536,6 +1823,7 @@ $("#applyBuiltinTemplate").addEventListener("click", () => {
 updateWordCount();
 updateBuiltInTemplateMetadata();
 refreshTemplateLibrary();
+refreshOrganisationTemplateLibrary();
 applyBranding();
 restoreLayoutControls();
 renderAudioState();
