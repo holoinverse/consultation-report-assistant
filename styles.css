@@ -239,14 +239,20 @@ form legend { width: 100%; padding: 0 0 14px; color: #3d5261; font-size: 11px; f
 .switch-row input:focus-visible + i { outline: 3px solid rgba(23,129,121,.24); outline-offset: 2px; }
 #watermarkField { margin-top: 12px; }
 .template-body > p { margin: 0 0 12px; color: var(--muted); font-size: 9px; }
-.built-in-library { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; margin-bottom: 14px; padding: 12px; border: 1px solid #dce9e7; border-radius: 9px; background: #f5faf9; }
-.organisation-library { display: grid; gap: 10px; margin-bottom: 14px; padding: 12px; border: 1px solid #dfe6eb; border-radius: 9px; background: #fbfcfd; }
+.template-system { margin-bottom: 14px; padding: 12px; border: 1px solid #e0e7e9; border-radius: 10px; background: #fbfcfc; }
+.organisation-library { display: grid; gap: 10px; border-color: #b9d6d2; background: linear-gradient(145deg, #f2f9f8, #fbfdfd); box-shadow: 0 8px 22px rgba(18,112,106,.07); }
+.built-in-library { display: grid; gap: 10px; border-color: #e2e8ea; background: #fafbfb; }
+.built-in-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.personal-library { border-color: #e5e8ec; background: #fcfcfd; }
 .template-subheading, .organisation-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .template-subheading strong, .template-subheading small, .organisation-review-heading strong, .organisation-review-heading small { display: block; }
 .template-subheading strong, .organisation-review-heading strong { color: var(--navy); font: 500 13px Georgia, serif; }
 .template-subheading small, .organisation-review-heading small { margin-top: 2px; color: #819098; font-size: 8px; line-height: 1.4; }
 .organisation-primary-actions, .organisation-management { display: flex; flex-wrap: wrap; gap: 7px; }
 .organisation-management { padding-top: 9px; border-top: 1px solid #e7edef; }
+.template-empty-message { margin: -2px 0 0; padding: 8px 9px; border: 1px dashed #c8d8da; border-radius: 7px; color: #6f8189; background: rgba(255,255,255,.68); font-size: 9px; }
+.template-source { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 5px; margin: -1px 0 0; color: #71838c; font-size: 8px; }
+.template-source strong { overflow: hidden; color: #405763; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .file-button { position: relative; overflow: hidden; cursor: pointer; }
 .file-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .organisation-template-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 0; border-radius: 14px; color: #40525e; background: #fff; box-shadow: 0 28px 80px rgba(16,42,67,.28); overflow: hidden; }
@@ -269,7 +275,7 @@ form legend { width: 100%; padding: 0 0 14px; color: #3d5261; font-size: 11px; f
 .organisation-row-controls .remove { color: #8f4c4c; }
 .organisation-empty-state { margin: 0; padding: 18px; border: 1px dashed #cddadd; border-radius: 8px; color: #71838c; background: #fbfcfc; font-size: 10px; text-align: center; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 14px 22px; border-top: 1px solid #e5ebed; background: #fbfcfc; }
-.template-save-fields { display: grid; gap: 10px; margin-bottom: 10px; padding-top: 12px; border-top: 1px solid #e8edef; }
+.template-save-fields { display: grid; gap: 10px; margin: 12px 0 10px; padding-top: 12px; border-top: 1px solid #e8edef; }
 .template-save-fields textarea { min-height: 64px; }
 .inline-control { display: grid; grid-template-columns: 1fr auto; }
 .inline-control input { min-width: 0; height: 39px; border: 1px solid #ced9de; border-radius: 8px 0 0 8px; padding: 0 10px; font-size: 11px; outline: 0; }
@@ -444,6 +450,7 @@ button.export-option:disabled { opacity: .55; cursor: not-allowed; }
   .field.full { grid-column: auto; }
   .form-action { align-items: stretch; flex-direction: column; }
   .side-column { grid-template-columns: 1fr; }
+  .built-in-controls { grid-template-columns: 1fr; }
   .organisation-section-row { grid-template-columns: 86px minmax(0, 1fr); }
   .organisation-row-controls { grid-column: 1 / -1; justify-content: flex-end; }
   .report-toolbar-actions { justify-content: space-between; margin-top: 12px; }

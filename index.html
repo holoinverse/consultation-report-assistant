@@ -228,14 +228,12 @@ Priority actions identified by the group were: extend opening hours on a trial b
             <section class="panel compact-panel template-panel" aria-labelledby="template-heading">
               <div class="panel-header compact"><div><span class="step-kicker">Local library</span><h3 id="template-heading">Report Templates</h3></div></div>
               <div class="template-body">
-                <p>Start from a built-in structure or save the current report configuration in this browser.</p>
-                <div class="built-in-library">
-                  <label class="field" for="builtinTemplates"><span>Built-in Report Templates</span><select id="builtinTemplates"><option>Consultation Report</option><option>Workshop Summary</option><option>Policy Brief</option><option>Committee Minutes</option></select></label>
-                  <button id="applyBuiltinTemplate" class="button button-secondary button-small" type="button">Apply Template</button>
-                </div>
-                <section class="organisation-library" aria-labelledby="organisation-templates-heading">
-                  <div class="template-subheading"><div><strong id="organisation-templates-heading">Organisation Templates</strong><small>Approved report structures imported from DOCX.</small></div><button id="toggleArchivedOrganisationTemplates" class="button button-quiet button-small" type="button">Show archived</button></div>
+                <p>Choose the approved format that best fits this report.</p>
+                <section class="organisation-library template-system primary" aria-labelledby="organisation-templates-heading">
+                  <div class="template-subheading"><div><strong id="organisation-templates-heading">Organisation Templates <span id="organisationTemplateCount" aria-live="polite">(0)</span></strong><small>Approved report formats used by your organisation.</small></div><button id="toggleArchivedOrganisationTemplates" class="button button-quiet button-small" type="button">Show archived</button></div>
                   <label class="field" for="organisationTemplates"><span>Select Organisation Template</span><select id="organisationTemplates"><option value="">No organisation templates</option></select></label>
+                  <p class="template-empty-message" id="organisationTemplateEmpty" role="status">No organisation templates available yet.</p>
+                  <p class="template-source" id="organisationTemplateSource" aria-live="polite" hidden><span>Imported from:</span><strong id="organisationTemplateSourceName"></strong></p>
                   <div class="organisation-primary-actions">
                     <button id="applyOrganisationTemplate" class="button button-secondary button-small" type="button" disabled>Apply Template</button>
                     <label class="button button-primary button-small file-button" for="organisationTemplateFile">Import Organisation Template<input id="organisationTemplateFile" type="file" accept="application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"></label>
@@ -248,17 +246,24 @@ Priority actions identified by the group were: extend opening hours on a trial b
                     <button id="deleteOrganisationTemplate" class="button button-quiet button-small" type="button" disabled>Delete</button>
                   </div>
                 </section>
-                <div class="template-save-fields">
-                  <input id="templateCategory" type="hidden" value="Consultation">
-                  <label class="field"><span>Description</span><textarea id="templateDescription" rows="3" maxlength="240" placeholder="When should this template be used?"></textarea></label>
-                </div>
-                <div class="inline-control"><label class="sr-only" for="templateName">Template name or new name</label><input id="templateName" type="text" placeholder="Template name or new name" maxlength="60"><button id="saveTemplate" type="button" disabled>Save</button></div>
-                <div class="template-library">
-                  <label class="field" for="savedTemplates"><span>My Templates</span><select id="savedTemplates"><option value="">No saved templates</option></select></label>
-                  <div class="template-actions"><button id="loadTemplate" class="button button-secondary button-small" type="button" disabled>Load</button><button id="previewTemplate" class="button button-secondary button-small" type="button" disabled>Preview</button><button id="renameTemplate" class="button button-secondary button-small" type="button" disabled>Rename</button><button id="duplicateTemplate" class="button button-secondary button-small" type="button" disabled>Duplicate</button><button id="deleteTemplate" class="button button-quiet button-small" type="button" disabled>Delete</button></div>
-                </div>
-                <div class="template-preview" id="templatePreview" hidden></div>
-                <small class="local-note">Stored locally on this device. Templates save structure and design settings, not consultation content.</small>
+                <section class="built-in-library template-system secondary" aria-labelledby="built-in-templates-heading">
+                  <div class="template-subheading"><div><strong id="built-in-templates-heading">Built-in Templates</strong><small>Standard report structures included with the application.</small></div></div>
+                  <div class="built-in-controls"><label class="field" for="builtinTemplates"><span>Select Built-in Template</span><select id="builtinTemplates"><option>Consultation Report</option><option>Workshop Summary</option><option>Policy Brief</option><option>Committee Minutes</option></select></label><button id="applyBuiltinTemplate" class="button button-secondary button-small" type="button">Apply Template</button></div>
+                </section>
+                <section class="personal-library template-system" aria-labelledby="personal-templates-heading">
+                  <div class="template-subheading"><div><strong id="personal-templates-heading">Personal Templates</strong><small>Optional templates created for your own workflow.</small></div></div>
+                  <div class="template-save-fields">
+                    <input id="templateCategory" type="hidden" value="Consultation">
+                    <label class="field"><span>Description</span><textarea id="templateDescription" rows="3" maxlength="240" placeholder="When should this template be used?"></textarea></label>
+                  </div>
+                  <div class="inline-control"><label class="sr-only" for="templateName">Template name or new name</label><input id="templateName" type="text" placeholder="Template name or new name" maxlength="60"><button id="saveTemplate" type="button" disabled>Save</button></div>
+                  <div class="template-library">
+                    <label class="field" for="savedTemplates"><span>Saved Personal Templates</span><select id="savedTemplates"><option value="">No saved templates</option></select></label>
+                    <div class="template-actions"><button id="loadTemplate" class="button button-secondary button-small" type="button" disabled>Load</button><button id="previewTemplate" class="button button-secondary button-small" type="button" disabled>Preview</button><button id="renameTemplate" class="button button-secondary button-small" type="button" disabled>Rename</button><button id="duplicateTemplate" class="button button-secondary button-small" type="button" disabled>Duplicate</button><button id="deleteTemplate" class="button button-quiet button-small" type="button" disabled>Delete</button></div>
+                  </div>
+                  <div class="template-preview" id="templatePreview" hidden></div>
+                  <small class="local-note">Stored locally on this device. Templates save structure and design settings, not consultation content.</small>
+                </section>
               </div>
             </section>
 

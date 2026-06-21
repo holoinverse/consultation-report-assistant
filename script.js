@@ -626,6 +626,9 @@ function updateOrganisationTemplateActions() {
   ["#editOrganisationTemplate", "#renameOrganisationTemplate", "#duplicateOrganisationTemplate", "#deleteOrganisationTemplate"].forEach(selector => { $(selector).disabled = !selected; });
   $("#archiveOrganisationTemplate").disabled = !selected;
   $("#archiveOrganisationTemplate").textContent = template?.status === "archived" ? "Restore" : "Archive";
+  const sourceName = template?.source?.fileName || "";
+  $("#organisationTemplateSource").hidden = !sourceName;
+  $("#organisationTemplateSourceName").textContent = sourceName;
 }
 
 function refreshOrganisationTemplateLibrary(selectedId = "") {
@@ -634,8 +637,13 @@ function refreshOrganisationTemplateLibrary(selectedId = "") {
   const select = $("#organisationTemplates");
   select.innerHTML = templates.length
     ? `<option value="">Select an organisation template</option>${templates.map(template => `<option value="${escapeHTML(template.id)}">${escapeHTML(template.name)}${template.status === "archived" ? " (Archived)" : ""}</option>`).join("")}`
-    : `<option value="">${showingArchivedOrganisationTemplates ? "No organisation templates" : "No active organisation templates"}</option>`;
+    : `<option value="">${allTemplates.length ? "No active organisation templates" : "No organisation templates available yet."}</option>`;
   select.value = templates.some(template => template.id === selectedId) ? selectedId : "";
+  $("#organisationTemplateCount").textContent = `(${allTemplates.length})`;
+  $("#organisationTemplateEmpty").hidden = templates.length > 0;
+  $("#organisationTemplateEmpty").textContent = allTemplates.length
+    ? "No active organisation templates. Choose Show archived to restore one."
+    : "No organisation templates available yet.";
   $("#toggleArchivedOrganisationTemplates").textContent = showingArchivedOrganisationTemplates ? "Hide archived" : "Show archived";
   updateOrganisationTemplateActions();
 }
