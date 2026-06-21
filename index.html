@@ -131,17 +131,42 @@ Priority actions identified by the group were: extend opening hours on a trial b
               </div>
 
               <div id="audioPanel" class="tab-panel" role="tabpanel" aria-labelledby="audioTab" hidden>
-                <div class="audio-placeholder" id="audioDropArea">
-                  <span class="coming-badge">Local only</span>
-                  <div class="upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 15v4h14v-4"/></svg></div>
-                  <h4>Add consultation audio</h4>
-                  <p>Upload an audio recording for local playback and transcript preparation. Nothing leaves this browser.</p>
-                  <label class="button button-secondary audio-upload-button" for="audioUpload">Choose audio file<input id="audioUpload" type="file" accept="audio/*"></label>
-                </div>
-                <div class="audio-file-card" id="audioFileCard" hidden>
-                  <div class="audio-file-heading"><span class="audio-file-icon" aria-hidden="true">♪</span><div><strong id="audioFileName">Audio file</strong><small id="audioFileMeta"></small></div><button id="removeAudio" type="button" aria-label="Remove audio file">×</button></div>
-                  <audio id="audioPlayer" controls preload="metadata"></audio>
-                </div>
+                <section class="audio-capture" aria-labelledby="audio-capture-heading">
+                  <div class="audio-section-heading"><div><span class="step-kicker">Browser microphone</span><h4 id="audio-capture-heading">Audio Capture</h4><p>Record consultation audio directly or use an existing local file.</p></div><span class="coming-badge">Local only</span></div>
+                  <div class="recorder-console">
+                    <div class="recording-status" id="recordingStatus" role="status" aria-live="polite"><i aria-hidden="true"></i><div><strong>Ready to record</strong><small>Microphone access is requested only when recording starts.</small></div></div>
+                    <time class="recording-duration" id="recordingDuration" datetime="PT0S">00:00:00</time>
+                    <div class="recording-controls" aria-label="Recording controls">
+                      <button class="button button-primary button-small" id="startRecording" type="button">Start Recording</button>
+                      <button class="button button-secondary button-small" id="pauseRecording" type="button" disabled>Pause Recording</button>
+                      <button class="button button-secondary button-small" id="resumeRecording" type="button" disabled>Resume Recording</button>
+                      <button class="button button-quiet button-small" id="stopRecording" type="button" disabled>Stop Recording</button>
+                    </div>
+                  </div>
+                  <div class="audio-upload-option" id="audioDropArea">
+                    <div><strong>Use an existing recording</strong><small>Upload for local playback and transcript preparation.</small></div>
+                    <label class="button button-secondary audio-upload-button" for="audioUpload">Choose audio file<input id="audioUpload" type="file" accept="audio/*"></label>
+                  </div>
+                  <div class="audio-file-card" id="audioFileCard" hidden>
+                    <div class="audio-file-heading"><span class="audio-file-icon" aria-hidden="true">♪</span><div><strong id="audioFileName">Audio file</strong><small id="audioFileMeta"></small></div><button id="removeAudio" type="button" aria-label="Remove audio file">×</button></div>
+                    <audio id="audioPlayer" controls preload="metadata"></audio>
+                  </div>
+                </section>
+                <section class="audio-library" aria-labelledby="audio-library-heading">
+                  <div class="audio-section-heading"><div><span class="step-kicker">Persistent local storage</span><h4 id="audio-library-heading">Audio Library <span id="audioLibraryCount" aria-live="polite">(0)</span></h4><p>Saved recordings remain available when you reopen the application.</p></div></div>
+                  <p class="audio-library-status" id="audioLibraryStatus" role="status" aria-live="polite">Loading saved recordings…</p>
+                  <div class="audio-library-list" id="audioLibraryList"></div>
+                  <div class="library-player" id="libraryPlayer" hidden>
+                    <div class="library-player-heading"><span class="audio-file-icon" aria-hidden="true">♪</span><div><strong id="libraryPlayerName">Recording</strong><small id="libraryPlayerMeta"></small></div></div>
+                    <audio id="libraryAudioElement" preload="metadata"></audio>
+                    <div class="library-player-controls">
+                      <button class="library-play-toggle" id="libraryPlayToggle" type="button" aria-label="Play selected recording">▶</button>
+                      <span id="libraryCurrentTime">00:00</span>
+                      <label class="sr-only" for="librarySeek">Playback position</label><input id="librarySeek" type="range" min="0" max="0" value="0" step="0.1">
+                      <span id="libraryDuration">00:00</span>
+                    </div>
+                  </div>
+                </section>
                 <div class="transcript-foundation">
                   <div class="transcript-heading"><div><span class="step-kicker">Transcript review foundation</span><h4>Transcript workspace</h4></div><span class="foundation-badge">Manual input</span></div>
                   <label class="field" for="transcriptText"><span>Transcript</span><textarea id="transcriptText" rows="8" placeholder="Paste or type a transcript here. Automatic transcription will be added in a future release."></textarea></label>
@@ -358,8 +383,26 @@ Priority actions identified by the group were: extend opening hours on a trial b
     <div class="dialog-actions"><button id="cancelOrganisationTemplate" class="button button-quiet" type="button">Cancel</button><button id="saveOrganisationTemplate" class="button button-primary" type="button">Save Organisation Template</button></div>
   </dialog>
 
+  <dialog class="recording-name-dialog" id="recordingNameDialog" aria-labelledby="recording-name-title">
+    <div class="dialog-header"><div><span class="step-kicker">Save locally</span><h3 id="recording-name-title">Name this recording</h3></div><button id="closeRecordingDialog" class="dialog-close" type="button" aria-label="Discard recording and close">×</button></div>
+    <div class="dialog-body">
+      <p class="recording-save-summary" id="recordingSaveSummary"></p>
+      <label class="field" for="recordingName"><span>Recording name</span><input id="recordingName" type="text" maxlength="100" placeholder="e.g. Community Consultation - June 2026"></label>
+      <small class="local-note">The recording is saved to this browser using IndexedDB. It is not uploaded.</small>
+    </div>
+    <div class="dialog-actions"><button id="discardRecording" class="button button-quiet" type="button">Discard</button><button id="saveRecording" class="button button-primary" type="button">Save Recording</button></div>
+  </dialog>
+
+  <dialog class="recording-name-dialog" id="renameRecordingDialog" aria-labelledby="rename-recording-title">
+    <div class="dialog-header"><div><span class="step-kicker">Audio Library</span><h3 id="rename-recording-title">Rename recording</h3></div><button id="closeRenameRecording" class="dialog-close" type="button" aria-label="Cancel renaming">×</button></div>
+    <div class="dialog-body"><label class="field" for="renameRecordingName"><span>Recording name</span><input id="renameRecordingName" type="text" maxlength="100"></label></div>
+    <div class="dialog-actions"><button id="cancelRenameRecording" class="button button-quiet" type="button">Cancel</button><button id="confirmRenameRecording" class="button button-primary" type="button">Save Name</button></div>
+  </dialog>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="docx-importer.js"></script>
+  <script src="media-library.js"></script>
   <script src="script.js"></script>
+  <script src="audio-workspace.js"></script>
 </body>
 </html>
